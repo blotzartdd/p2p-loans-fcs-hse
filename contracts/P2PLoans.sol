@@ -42,7 +42,7 @@ contract P2PLoans {
     address private trustedTokenAddress = 0x7169D38820dfd117C3FA1f22a697dBA58d90BA06; // Sepolia Tether USD
     IERC20 public trustedToken;
 
-    uint256 public appFee;
+    uint256 public appFee; // [0, 100]
 
     LoanPool[] public pools;
     
@@ -52,6 +52,9 @@ contract P2PLoans {
     Loan[] loans;
 
     event PoolCreated(address indexed creator);
+    event WithdrawnFromPool();
+    event ContributedToPool();
+    event BorrowMade();
 
     constructor(uint256 _appFee) {
         owner = msg.sender;
@@ -86,6 +89,8 @@ contract P2PLoans {
         require(isInPool(msg.sender, poolId), "Lender should be in pool.");
         lenderToPoolAmount[msg.sender][poolId] += msg.value;
         pools[poolId].totalAmount += msg.value;
+
+        emit ContributedToPool();
     }  
 
      function withdrawFromPool(uint256 poolId, uint256 amount) external {
@@ -96,6 +101,7 @@ contract P2PLoans {
         (bool success, ) = msg.sender.call{value: amount}("");
 
         require(success, "Successfully withdrawn from pool");
+        emit WithdrawnFromPool();
     } 
 
     // Make approve before 
@@ -110,6 +116,8 @@ contract P2PLoans {
 
         pools[poolId].loanIds.push(loanId);
         loans.push(loan);
+
+        emit BorrowMade();
     }
 
     function becomeLender() external {
@@ -123,7 +131,6 @@ contract P2PLoans {
         uint256[] memory loanIds;
         borrowers[msg.sender] = BorrowerInfo(loanIds, true);
     }
-
 
     function isInPool(address addr, uint256 poolId) private view returns (bool) {
         require(lenders[addr].isActive, "Should be lender.");
