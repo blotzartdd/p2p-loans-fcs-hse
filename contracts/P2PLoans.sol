@@ -39,7 +39,9 @@ struct BorrowerInfo {
 
 contract P2PLoans {
     address public owner;
-    address private trustedToken = 0x7169D38820dfd117C3FA1f22a697dBA58d90BA06; // Sepolia Tether USD
+    address private trustedTokenAddress = 0x7169D38820dfd117C3FA1f22a697dBA58d90BA06; // Sepolia Tether USD
+    IERC20 public trustedToken;
+
     uint256 public appFee;
 
     LoanPool[] public pools;
@@ -47,12 +49,13 @@ contract P2PLoans {
     mapping(address => LenderInfo) public lenders;
     mapping(address => mapping(uint256 => uint256)) public lenderToPoolAmount;
     mapping(address => BorrowerInfo) public borrowers;
-    mapping(uint256 => Loan) public loans;
+    Loan[] loans;
 
     event PoolCreated(address indexed creator);
 
     constructor(uint256 _appFee) {
         owner = msg.sender;
+        trustedToken = IERC20(trustedTokenAddress);
         appFee = _appFee;
     }
 
@@ -90,10 +93,24 @@ contract P2PLoans {
         require(isInPool(msg.sender, poolId), "Lender should be in pool.");
         lenderToPoolAmount[msg.sender][poolId] -= amount;
         pools[poolId].totalAmount -= amount;
-        (bool success, _) = msg.sender.call{value: amount}("");
+        (bool success, ) = msg.sender.call{value: amount}("");
 
         require(success, "Successfully withdrawn from pool");
     } 
+
+    // Make approve before 
+    function makeBorrow(uint256 amount, uint256 duration, uint256 poolId) external { // duration in second
+        require(borrowers[msg.sender].isActive, "Should be active borrower.");
+        uint256 fee = amount * appFee / 10000;
+        Loan memory loan = Loan(amount, amount + fee, fee, block.timestamp, duration, msg.sender, false);
+
+        uint256 loanId = loans.length;
+
+        trustedToken.transferFrom(msg.sender, address(this), amount + fee);
+
+        pools[poolId].loanIds.push(loanId);
+        loans.push(loan);
+    }
 
     function becomeLender() external {
         require(!lenders[msg.sender].isActive, "Should not be lender.");
@@ -108,10 +125,10 @@ contract P2PLoans {
     }
 
 
-    function isInPool(address calldata addr, uint256 poolId) private view returns (bool) {
-        require(lenders[msg.sender].isActive, "Should be lender.");
-        for (uint256 i = 0; i < lenders[msg.sender].poolsId.length; ++i) {
-            if (lenders[msg.sender].poolsId[i] == poolId) {
+    function isInPool(address addr, uint256 poolId) private view returns (bool) {
+        require(lenders[addr].isActive, "Should be lender.");
+        for (uint256 i = 0; i < lenders[addr].poolsId.length; ++i) {
+            if (lenders[addr].poolsId[i] == poolId) {
                 return true;
             }
         }
