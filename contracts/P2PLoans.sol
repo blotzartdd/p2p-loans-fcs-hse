@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 import "./IERC20.sol";
 
 struct LoanPool {
     address poolOwner;
 
     uint256 totalAmount;
-    // uint256 trustedTokenTotalAmount;
+    uint256 trustedTokenTotalAmount;
     uint256 poolLenderFee;
 
     address[] lenders;
@@ -56,7 +56,7 @@ contract P2PLoans {
     event PoolCreated(address indexed creator);
     event WithdrawnFromPool();
     event ContributedToPool();
-    event BorrowMade();
+    event BorrowMade(uint256 loanId);
     event NewLender();
     event NewBorrower();
     event LoanPayed(uint256 loanId);
@@ -87,7 +87,7 @@ contract P2PLoans {
         }
 
         uint256[] memory _loanIds;
-        pools.push(LoanPool(msg.sender, msg.value, _poolLenderFee, _lenders, _loanIds, true));
+        pools.push(LoanPool(msg.sender, msg.value, 0, _poolLenderFee, _lenders, _loanIds, true));
         lenderToPoolAmount[msg.sender][poolId] += msg.value;
 
         emit PoolCreated(msg.sender);
@@ -137,10 +137,10 @@ contract P2PLoans {
         pools[poolId].loanIds.push(loanId);
         loans.push(loan);
 
-        emit BorrowMade();
+        emit BorrowMade(loanId);
     }
 
-    function payLoan(uint256 poolId, uint256 loanId) external payable {
+    function payLoan(uint256 loanId) external payable {
         require(borrowers[msg.sender].isActive, "Should be borrower.");
         require(loans[loanId].borrower == msg.sender, "Should be valid borrower.");
         require(msg.value > 0, "Should pay > 0.");
@@ -150,7 +150,7 @@ contract P2PLoans {
         trustedToken.transfer(msg.sender, msg.value);
 
         if (loans[loanId].left == 0) {
-            loans[loanId].payed = true;
+            loans[loanId].isPayed = true;
             emit LoanPayed(loanId);
         }
     }
