@@ -3,6 +3,8 @@ import { config } from "./wagmiconfig";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider } from 'wagmi';
 import { WalletConnect } from './components/WalletConnect';
+import { Borrowing } from './components/Borrowing';
+import { Lending } from './components/Lending';
 
 const queryClient = new QueryClient();
 
@@ -24,8 +26,9 @@ function App() {
                             <div className="flex items-center space-x-10">
                                 <button className="px-4 py-2 rounded-lg hover:text-lime-400 transition-colors duration-200"> Home </button>
                                 <button className="px-4 py-2 rounded-lg hover:text-lime-400 transition-colors duration-200"> Swap </button>
+                                <button className="px-4 py-2 rounded-lg hover:text-lime-400 transition-colors duration-200"> Dashboard </button>
                                 <button
-                                    className={`px-4 py-2 rounded-lg text-gray-600 transition-colors ${activeTab === 'lend'
+                                    className={`px-4 py-2 rounded-lg text-gray-800 transition-colors ${activeTab === 'lend'
                                         ? 'bg-lime-400'
                                         : 'hover:text-lime-400'
                                         }`}
@@ -46,6 +49,11 @@ function App() {
                             </div>
                         </div>
                     </nav>
+
+                    <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                        {activeTab === 'lend' ? <Lending /> : <Borrowing />}
+                    </main>
+
                 </div>
 
                 <footer className="border-t border-gray-800">
