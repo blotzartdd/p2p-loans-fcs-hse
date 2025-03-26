@@ -12,6 +12,11 @@ interface Pool {
     isLoaded: boolean;
 }
 
+interface Lender {
+    totalReward: bigint;
+    isActive: boolean;
+}
+
 function Contribute({ poolId }: { poolId: bigint }) {
     const [showContributeMenu, setShowContributeMenu] = useState(false);
     const [amount, setAmount] = useState('');
@@ -177,17 +182,13 @@ function PoolInterface({ poolId }: { poolId: bigint }) {
             <Contribute poolId={poolId} />
             <Withdraw poolId={poolId} />
             <ClaimRewards poolId={poolId} />
-            <div className="mt-2 ml-10 py-1  text-gray-800 rounded transition-colors">
-                Joined
-            </div>
         </div>
     );
 }
 
-function JoinPool({ poolId }: { poolId: bigint }) {
+function JoinPool({ address, poolId }: { address: string, poolId: bigint }) {
     const { isPending, writeContract } = useWriteContract();
-    // TODO: Check if user in pool (add methord to smart contract)
-    const inPool = true;
+    const inPool = isInPool(address, poolId);
 
     async function join() {
         writeContract({
@@ -205,7 +206,7 @@ function JoinPool({ poolId }: { poolId: bigint }) {
                     Join Pool
                 </button>
             ) : (
-                <div className="flex justify-center items-center py-4">
+                <div className="flex justify-center items-center">
                     {isPending ? (
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lime-600"></div>
                     ) : (
@@ -223,7 +224,7 @@ function CreatePool() {
     const [amount, setAmount] = useState('');
     const [fee, setFee] = useState('');
     const [lenders, setLenders] = useState([]);
-    const { isPending, status, writeContract } = useWriteContract();
+    const { writeContract } = useWriteContract();
 
     async function createPool() {
         writeContract({
@@ -320,27 +321,8 @@ function CreatePool() {
     );
 }
 
-function getPool(poolId: bigint) {
-    const { data: pool, error: error, isPending: isPending } = useReadContract({
-        address: p2ploansAddress,
-        abi: p2ploansABI,
-        functionName: 'pools',
-        args: [poolId],
-    });
-
-    if (isPending) {
-        return { id: poolId, amount: 0n, apr: 0, isActive: false, isLoaded: false };
-    }
-
-    console.log(pool);
-    console.log(error);
-    console.log(isPending);
-
-    return { id: poolId, amount: pool[1].valueOf(), apr: pool[3].valueOf(), isActive: pool[4], isLoaded: true };
-}
-
-function GetPoolAmount({ poolId, address }: { poolId: bigint, address: string }) {
-    const { data: amount, isPending: isPending } = useReadContract({
+function GetLenderPoolAmount({ poolId, address }: { poolId: bigint, address: string }) {
+    const { data: amount, isSuccess } = useReadContract({
         address: p2ploansAddress,
         abi: p2ploansABI,
         functionName: 'lenderToPoolAmount',
@@ -348,14 +330,13 @@ function GetPoolAmount({ poolId, address }: { poolId: bigint, address: string })
     });
 
 
-    if (isPending) {
+    if (!isSuccess) {
         return (
             <p className="text-lg font-semibold">
                 Your part: --- ETH
             </p>
         );
     }
-
 
     return (
         <p className="text-lg font-semibold">
@@ -364,13 +345,57 @@ function GetPoolAmount({ poolId, address }: { poolId: bigint, address: string })
     );
 }
 
-export function Lending() {
-    const { address } = useAccount();
-    const { data: balance } = useBalance({ address });
-    const [amount, setAmount] = useState('');
 
-    const poolsAmount = 3n; // TODO: Change to fetch from contract
+function getPool(poolId: bigint) {
+    const { data: pool, error: error, isSuccess } = useReadContract({
+        address: p2ploansAddress,
+        abi: p2ploansABI,
+        functionName: 'pools',
+        args: [poolId],
+    });
 
+    if (!isSuccess) {
+        return { id: poolId, amount: 0n, apr: 0, isActive: false, isLoaded: false };
+    }
+
+    console.log(pool);
+    console.log(error);
+    console.log(isSuccess);
+
+    return { id: poolId, amount: pool[1].valueOf(), apr: pool[3].valueOf(), isActive: pool[4], isLoaded: true };
+}
+
+function getPoolsAmount() {
+    const { data: amount, isSuccess } = useReadContract({
+        address: p2ploansAddress,
+        abi: p2ploansABI,
+        functionName: 'getPoolsAmount',
+        args: [],
+    });
+
+    if (!isSuccess) {
+        return 0n;
+    }
+
+    return amount.valueOf();
+}
+
+function isInPool(address: string, poolId: bigint) {
+    const { data: isInPool, isSuccess } = useReadContract({
+        address: p2ploansAddress,
+        abi: p2ploansABI,
+        functionName: 'isInPool',
+        args: [address, poolId],
+    });
+
+    if (isSuccess) {
+        return isInPool;
+    }
+
+    return false;
+}
+
+function Pools({ address, poolsAmount }: { address: string, poolsAmount: bigint }) {
     const pools: Pool[] = [];
 
     for (let i = 0n; i < poolsAmount; ++i) {
@@ -378,15 +403,128 @@ export function Lending() {
         pools.push(pool);
     }
 
+    return (<div className="grid gap-4">
+        {pools.map((pool) => (
+            <div
+                key={pool.id}
+                className="border rounded-lg p-4 hover:border-lime-500 transition-colors"
+            >
+                {pool.isLoaded ? (
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <p className="text-lg font-semibold">
+                                {formatEther(pool.amount)} ETH
+                            </p>
+                            <GetLenderPoolAmount poolId={pool.id} address={address} />
+
+                            <p className="text-sm text-gray-600">
+                                Activity: {pool.isActive ? "Yes" : "No"}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                                Pool ID: {pool.id}
+                            </p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-lg font-semibold text-blue-600">
+                                {pool.apr}% Pool fee
+                            </p>
+                            <JoinPool address={address} poolId={pool.id} />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex justify-center items-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lime-600"></div>
+                        <span className="ml-3">Loading pool data...</span>
+                    </div>
+                )}
+            </div>
+        ))}
+        <CreatePool />
+    </div>
+    );
+}
+
+function getLender(address: string) {
+    const { data: lender, isSuccess } = useReadContract({
+        address: p2ploansAddress,
+        abi: p2ploansABI,
+        functionName: 'lenders',
+        args: [address.address],
+    });
+
+    if (isSuccess) {
+        return { totalReward: lender[0], isActive: lender[1] };
+    }
+
+    return { totalReward: 0, isActive: false };
+}
+
+function BecomeLender(address: string) {
+    const { isPending, writeContract } = useWriteContract();
+    const lender = getLender(address);
+    console.log(`Lender status: ${lender.isActive}`);
+
+    async function becomeLender() {
+        writeContract({
+            address: p2ploansAddress,
+            abi: p2ploansABI,
+            functionName: 'becomeLender',
+            args: [],
+        })
+    };
+
     return (
-        <div className="max-w-5xl mx-auto p-6">
+        <>
+            {lender.isActive ? (
+                <div className="grid md:grid-cols-2 gap-2">
+                    < div className="bg-green-50 rounded-lg p-6 flex items-center text-lg font-semibold">
+                        <div className="flex text-lg gap-4">
+                            Your lender status: Active
+                        </div>
+                    </div >
+                    <div className="bg-green-50 rounded-lg p-6 flex items-center text-lg font-semibold">
+                        <div className="flex text-lg gap-4">
+                            Your reward from pools:
+                            <div className="font-bold text-lime-700">
+                                {lender.totalReward} ETH
+                            </div>
+                        </div>
+                    </div>
+                </div>) : (
+                <div className="bg-green-50 rounded-lg p-6">
+                    <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
+                        <ArrowRightLeft className="w-5 h-5" />
+                        Join community
+                    </h3 >
+                    <div className="flex gap-4">
+                        <button
+                            className="px-6 py-2 bg-lime-600 text-white rounded-lg hover:bg-lime-700 transition-colors"
+                            onClick={becomeLender}
+                        >
+                            Become Lender
+                        </button>
+                    </div>
+                </div >
+            )
+            }
+        </>
+    );
+}
+
+export function Lending() {
+    const { address } = useAccount();
+    const { data: balance } = useBalance({ address });
+    const poolsAmount = getPoolsAmount();
+
+    return (
+        <div className="max-w-6xl mx-auto p-6">
             <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
                 <div className="flex items-center gap-3 mb-6">
                     <Landmark className="w-8 h-8 text-lime-600" />
                     <h2 className="text-2xl font-bold text-gray-800">Lender panel</h2>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid md:grid-cols-1 gap-2">
                     <div className="bg-lime-50 rounded-lg p-6">
                         <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
                             <Coins className="w-5 h-5" />
@@ -397,70 +535,13 @@ export function Lending() {
                         </p>
                     </div>
 
-                    <div className="bg-green-50 rounded-lg p-6">
-                        <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
-                            <ArrowRightLeft className="w-5 h-5" />
-                            Available to Lend
-                        </h3>
-                        <div className="flex gap-4">
-                            <input
-                                type="number"
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                placeholder="Amount in ETH"
-                                className="flex-1 px-4 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-lime-500"
-                            />
-                            <button
-                                className="px-6 py-2 bg-lime-600 text-white rounded-lg hover:bg-lime-700 transition-colors"
-                                onClick={() => console.log('Lending', amount, 'ETH')}
-                            >
-                                Lend
-                            </button>
-                        </div>
-                    </div>
+                    <BecomeLender address={address} />
                 </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-lg p-6">
                 <h3 className="text-xl font-semibold mb-6">Active Lending Pools</h3>
-                <div className="grid gap-4">
-                    {pools.map((pool) => (
-                        <div
-                            key={pool.id}
-                            className="border rounded-lg p-4 hover:border-lime-500 transition-colors"
-                        >
-                            {pool.isLoaded ? (
-                                <div className="flex justify-between items-center">
-                                    <div>
-                                        <p className="text-lg font-semibold">
-                                            {formatEther(pool.amount)} ETH
-                                        </p>
-                                        <GetPoolAmount poolId={pool.id} address={address} />
-
-                                        <p className="text-sm text-gray-600">
-                                            Activity: {pool.isActive ? "Yes" : "No"}
-                                        </p>
-                                        <p className="text-sm text-gray-600">
-                                            Pool ID: {pool.id}
-                                        </p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-lg font-semibold text-blue-600">
-                                            {pool.apr}% Pool fee
-                                        </p>
-                                        <JoinPool poolId={pool.id} />
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex justify-center items-center py-4">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lime-600"></div>
-                                    <span className="ml-3">Loading pool data...</span>
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                    <CreatePool />
-                </div>
+                <Pools address={address} poolsAmount={poolsAmount} />
             </div>
 
         </div>

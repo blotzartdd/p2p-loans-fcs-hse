@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-// import "hardhat/console.sol";
 import "./IERC20.sol";
 
 struct LoanPool {
@@ -49,8 +48,8 @@ contract P2PLoans {
     LoanPool[] public pools;
     
     mapping(address => LenderInfo) public lenders;
-    mapping(address => mapping(uint256 => uint256)) public lenderToPoolAmount;
     mapping(address => BorrowerInfo) public borrowers;
+    mapping(address => mapping(uint256 => uint256)) public lenderToPoolAmount;
     Loan[] loans;
 
     event PoolCreated(address indexed creator);

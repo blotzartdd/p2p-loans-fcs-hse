@@ -1,4 +1,4 @@
-export const p2ploansAddress = "0xBAC6cF259D8ed91e344df4a38Cde8448bf352672" as const;
+export const p2ploansAddress = "0x56577F6fcF558913650bD0160A65184E16392B4E" as const;
 
 export const p2ploansABI = [
     {
@@ -214,6 +214,43 @@ export const p2ploansABI = [
         "name": "getLenderReward",
         "outputs": [],
         "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getPoolsAmount",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "addr",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "poolId",
+                "type": "uint256"
+            }
+        ],
+        "name": "isInPool",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
         "type": "function"
     },
     {
