@@ -42,7 +42,7 @@ function Contribute({ poolId }: { poolId: bigint }) {
             </button>
             {
                 showContributeMenu && (
-                    <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
                         <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
                             <p className="text-lg font-semibold mb-4">Make a Contribution</p>
                             <div className="mb-4">
@@ -111,7 +111,7 @@ function Withdraw({ poolId }: { poolId: bigint }) {
             </button>
             {
                 showWithdrawMenu && (
-                    <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
                         <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
                             <p className="text-lg font-semibold mb-4">Make a Withdraw</p>
                             <div className="mb-4">
@@ -185,7 +185,7 @@ function PoolInterface({ poolId }: { poolId: bigint }) {
 }
 
 function JoinPool({ poolId }: { poolId: bigint }) {
-    const { isPending, status, writeContract } = useWriteContract();
+    const { isPending, writeContract } = useWriteContract();
     // TODO: Check if user in pool (add methord to smart contract)
     const inPool = true;
 
@@ -200,13 +200,13 @@ function JoinPool({ poolId }: { poolId: bigint }) {
 
     return (
         <div>
-            {status === "idle" && !inPool ? (
+            {!inPool ? (
                 <button className="mt-2 px-4 py-1 bg-lime-600 text-white rounded hover:bg-lime-700 transition-colors" onClick={join} disabled={isPending}>
                     Join Pool
                 </button>
             ) : (
                 <div className="flex justify-center items-center py-4">
-                    {isPending && !inPool ? (
+                    {isPending ? (
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lime-600"></div>
                     ) : (
                         <PoolInterface poolId={poolId} />
@@ -250,7 +250,7 @@ function CreatePool() {
             </button>
             {
                 showCreatePoolMenu && (
-                    <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
                         <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
                             <p className="text-lg font-semibold mb-4">Create pool</p>
                             <div className="mb-4">
