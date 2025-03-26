@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { parseEther, formatEther } from 'ethers';
-import { useAccount, useBalance } from 'wagmi';
+import { useAccount, useBalance, useReadContract } from 'wagmi';
 import { Wallet, ShieldCheck, CircleDollarSign } from 'lucide-react';
 
 interface LoanRequest {
@@ -40,7 +40,7 @@ export function Borrowing() {
             <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
                 <div className="flex items-center gap-3 mb-6">
                     <Wallet className="w-8 h-8 text-green-600" />
-                    <h2 className="text-2xl font-bold text-gray-800">Borrow Funds</h2>
+                    <h2 className="text-2xl font-bold text-gray-800">Borrower panel</h2>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
