@@ -179,7 +179,7 @@ contract P2PLoans {
         return borrowers[borrower].loanIds;
     }
 
-    function isInPool(address addr, uint256 poolId) private view returns (bool) {
+    function isInPool(address addr, uint256 poolId) public view returns (bool) {
         require(lenders[addr].isActive, "Should be lender.");
         for (uint256 i = 0; i < lenders[addr].poolIds.length; ++i) {
             if (lenders[addr].poolIds[i] == poolId) {
