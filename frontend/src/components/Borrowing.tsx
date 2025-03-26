@@ -1,8 +1,8 @@
-
 import { useState } from 'react';
 import { parseEther, formatEther } from 'ethers';
 import { useAccount, useBalance, useReadContract } from 'wagmi';
 import { Wallet, ShieldCheck, CircleDollarSign } from 'lucide-react';
+import { trustedTokenAddress, trustedTokenABI } from '../trustedTokenConfig';
 
 interface LoanRequest {
     id: number;
@@ -12,11 +12,85 @@ interface LoanRequest {
     apr: number;
 }
 
+function getTrustedTokenBalance(address: `0x${string}` | undefined) {
+    const { data: balance, isSuccess } = useReadContract({
+        address: trustedTokenAddress,
+        abi: trustedTokenABI,
+        functionName: 'balanceOf',
+        args: [address],
+    });
+
+
+    if (!address) {
+        return undefined;
+    }
+
+    if (!isSuccess) {
+        return undefined;
+    }
+
+    return balance.valueOf() / 1000000n;
+}
+
+function Borrow() {
+    const [borrowAmount, setBorrowAmount] = useState('');
+    const [collateralAmount, setCollateralAmount] = useState('');
+    const [duration, setDuration] = useState('');
+    const ethToUsdt = 2010.42;
+
+    return (
+        <div className="bg-green-50 rounded-lg p-6">
+            <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
+                <CircleDollarSign className="w-5 h-5" />
+                Borrow Request
+            </h3>
+            <div className="space-y-4">
+                <input
+                    type="number"
+                    value={borrowAmount}
+                    onChange={(e) => {
+                        setBorrowAmount(e.target.value);
+                        if (e.target.value) {
+                            setCollateralAmount(ethToUsdt * e.target.value);
+                        } else {
+                            setCollateralAmount(e.target.value);
+                        }
+                    }}
+                    placeholder="Amount to borrow (ETH)"
+                    min="0"
+                    className="w-full px-4 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-green-500"
+                    autoFocus
+                />
+                <input
+                    type="number"
+                    value={collateralAmount}
+                    onChange={(e) => setCollateralAmount(e.target.value)}
+                    placeholder="Collateral amount (USDT)"
+                    min="0"
+                    disabled
+                    className="w-full px-4 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <input
+                    type="number"
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    placeholder="Loan duration (days)"
+                    min="1"
+                    className="w-full px-4 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <button
+                    className="w-full px-6 py-2 bg-lime-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                    Submit Borrow Request
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export function Borrowing() {
     const { address } = useAccount();
-    const { data: balance } = useBalance({ address });
-    const [borrowAmount, setBorrowAmount] = useState('');
-    const [collateral, setCollateral] = useState('');
+    const balance = getTrustedTokenBalance(address);
 
     const loanRequests: LoanRequest[] = [
         {
@@ -44,42 +118,15 @@ export function Borrowing() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                    <div className="bg-green-50 rounded-lg p-6">
-                        <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
-                            <CircleDollarSign className="w-5 h-5" />
-                            Borrow Amount
-                        </h3>
-                        <div className="space-y-4">
-                            <input
-                                type="number"
-                                value={borrowAmount}
-                                onChange={(e) => setBorrowAmount(e.target.value)}
-                                placeholder="Amount to borrow (ETH)"
-                                className="w-full px-4 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-green-500"
-                            />
-                            <input
-                                type="number"
-                                value={collateral}
-                                onChange={(e) => setCollateral(e.target.value)}
-                                placeholder="Collateral amount (USDT)"
-                                className="w-full px-4 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-green-500"
-                            />
-                            <button
-                                className="w-full px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                                onClick={() => console.log('Borrowing', borrowAmount, 'ETH')}
-                            >
-                                Submit Borrow Request
-                            </button>
-                        </div>
-                    </div>
+                    <Borrow />
 
-                    <div className="bg-gray-50 rounded-lg p-6">
+                    <div className="bg-lime-50 rounded-lg p-6">
                         <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
                             <ShieldCheck className="w-5 h-5" />
                             Your Collateral Balance
                         </h3>
-                        <p className="text-2xl font-bold text-gray-700">
-                            {balance ? formatEther(balance.value).slice(0, 10) : '0'} USDT
+                        <p className="text-2xl font-bold text-lime-700">
+                            {balance ? balance : '---'} USDT
                         </p>
                         <p className="text-sm text-gray-600 mt-2">
                             Available for collateral
@@ -110,7 +157,7 @@ export function Borrowing() {
                                 </div>
                                 <div className="text-right">
                                     <p className="text-lg font-semibold text-blue-600">
-                                        {request.apr}% APR
+                                        {request.apr}% Loan fee
                                     </p>
                                     <button className="mt-2 px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
                                         Fund Request

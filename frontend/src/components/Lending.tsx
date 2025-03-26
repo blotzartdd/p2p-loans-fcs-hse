@@ -61,6 +61,7 @@ function Contribute({ poolId }: { poolId: bigint }) {
                                     onChange={(e) => setAmount(e.target.value)}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-lime-500"
                                     placeholder="Enter amount"
+                                    min="0"
                                     autoFocus
                                 />
                             </div>
@@ -130,6 +131,7 @@ function Withdraw({ poolId }: { poolId: bigint }) {
                                     onChange={(e) => setAmount(e.target.value)}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-lime-500"
                                     placeholder="Enter amount"
+                                    min="0"
                                     autoFocus
                                 />
                             </div>
@@ -265,6 +267,7 @@ function CreatePool() {
                                     onChange={(e) => setAmount(e.target.value)}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-lime-500"
                                     placeholder="Enter amount"
+                                    min="0"
                                     autoFocus
                                 />
                             </div>
@@ -280,6 +283,7 @@ function CreatePool() {
                                     onChange={(e) => setFee(e.target.value)}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-lime-500"
                                     placeholder="Enter fee"
+                                    min="0"
                                     autoFocus
                                 />
                             </div>
