@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { parseEther, formatEther, parseUnits } from 'ethers';
+import { parseEther, formatEther, parseUnits, formatUnits } from 'ethers';
 import { useAccount, useBalance, useReadContract, useWriteContract } from 'wagmi';
 import { Wallet, ShieldCheck, CircleDollarSign } from 'lucide-react';
 import { trustedTokenAddress, trustedTokenABI } from '../trustedTokenConfig';
@@ -37,7 +37,7 @@ function getTrustedTokenBalance(address: `0x${string}` | undefined) {
         return undefined;
     }
 
-    return balance.valueOf() / 1000000n;
+    return balance.valueOf();
 }
 
 function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalance, isDuration, isFee }:
@@ -332,7 +332,7 @@ function BorrowerInfo({ usdtBalance, ethBalance, address }: {
                     Your Collateral Balance
                 </h3>
                 <p className="text-2xl font-bold text-lime-700">
-                    {usdtBalance !== undefined ? usdtBalance : '---'} USDT
+                    {usdtBalance !== undefined ? formatUnits(usdtBalance, 6).slice(0, 10) : '---'} USDT
                 </p>
                 <p className="text-sm text-gray-600 mt-2">
                     Available for collateral

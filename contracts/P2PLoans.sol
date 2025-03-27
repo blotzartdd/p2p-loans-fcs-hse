@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import "./IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 struct LoanPool {
     address poolOwner;
@@ -40,7 +41,7 @@ struct BorrowerInfo {
 contract P2PLoans {
     address public owner;
     address private trustedTokenAddress = 0x7169D38820dfd117C3FA1f22a697dBA58d90BA06; // Sepolia Tether USD
-    IERC20 public trustedToken;
+    IERC20 private trustedToken;
 
     uint256 public appFee; // [0, 100]
 
@@ -61,12 +62,12 @@ contract P2PLoans {
 
     constructor(uint256 _appFee) {
         owner = msg.sender;
-        trustedToken = IERC20(trustedTokenAddress);
         appFee = _appFee;
     }
 
     function changeAppFee(uint256 newFee) external onlyOwner {
         require(newFee >= 0, "Fee should be positive.");
+        trustedToken = IERC20(trustedTokenAddress);
         appFee = newFee;
     }
 
@@ -119,7 +120,7 @@ contract P2PLoans {
     function getLenderReward(uint256 poolId) external {
         require(lenders[msg.sender].isActive, "Only lenders can withdraw from pool.");
         require(isInPool(msg.sender, poolId), "Lender should be in pool.");
-        trustedToken.transfer(msg.sender, lenders[msg.sender].totalReward);
+        SafeERC20.safeTransfer(trustedToken, msg.sender, lenders[msg.sender].totalReward);
     }
 
     // Make approve before 
@@ -129,7 +130,7 @@ contract P2PLoans {
 
         uint256 loanId = loans.length;
 
-        trustedToken.transferFrom(msg.sender, address(this), trustedTokenAmount);
+        SafeERC20.safeTransferFrom(trustedToken, msg.sender, address(this), trustedTokenAmount);
 
         pools[poolId].loanIds.push(loanId);
         loans.push(loan);
@@ -144,7 +145,7 @@ contract P2PLoans {
 
         // TODO: Change to convertion
         loans[loanId].left -= msg.value;
-        trustedToken.transfer(msg.sender, msg.value);
+        SafeERC20.safeTransfer(trustedToken, msg.sender, msg.value);
 
         if (loans[loanId].left == 0) {
             loans[loanId].isPayed = true;
