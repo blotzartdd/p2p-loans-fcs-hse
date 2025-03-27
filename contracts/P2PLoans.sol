@@ -4,6 +4,8 @@ pragma solidity ^0.8.28;
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import "hardhat/console.sol";
+
 struct LoanPool {
     address poolOwner;
 
@@ -62,12 +64,12 @@ contract P2PLoans {
 
     constructor(uint256 _appFee) {
         owner = msg.sender;
+        trustedToken = IERC20(trustedTokenAddress);
         appFee = _appFee;
     }
 
     function changeAppFee(uint256 newFee) external onlyOwner {
         require(newFee >= 0, "Fee should be positive.");
-        trustedToken = IERC20(trustedTokenAddress);
         appFee = newFee;
     }
 
@@ -126,6 +128,9 @@ contract P2PLoans {
     // Make approve before 
     function makeBorrow(uint256 amount, uint256 trustedTokenAmount, uint256 duration, uint256 poolId) external { // duration in seconds
         require(borrowers[msg.sender].isActive, "Should be active borrower.");
+        require(trustedToken.balanceOf(msg.sender) >= trustedTokenAmount, "Insufficient balance.");
+        require(trustedToken.allowance(msg.sender, address(this)) >= trustedTokenAmount, "Insufficient allowance");
+
         Loan memory loan = Loan(amount, trustedTokenAmount, block.timestamp, duration, msg.sender, false);
 
         uint256 loanId = loans.length;
