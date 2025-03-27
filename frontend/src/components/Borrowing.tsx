@@ -1,8 +1,12 @@
 import { useState } from 'react';
-import { parseEther, formatEther } from 'ethers';
-import { useAccount, useBalance, useReadContract } from 'wagmi';
+import { parseEther, formatEther, parseUnits } from 'ethers';
+import { useAccount, useBalance, useReadContract, useWriteContract } from 'wagmi';
 import { Wallet, ShieldCheck, CircleDollarSign } from 'lucide-react';
 import { trustedTokenAddress, trustedTokenABI } from '../trustedTokenConfig';
+import { p2ploansAddress, p2ploansABI } from '../p2ploansConfig';
+import { Coins, ArrowRightLeft } from 'lucide-react';
+
+import { getPoolsAmount, getPool } from './utils';
 
 interface LoanRequest {
     id: number;
@@ -13,6 +17,10 @@ interface LoanRequest {
 }
 
 function getTrustedTokenBalance(address: `0x${string}` | undefined) {
+    if (address === undefined) {
+        address = `0x${''}`;
+    }
+
     const { data: balance, isSuccess } = useReadContract({
         address: trustedTokenAddress,
         abi: trustedTokenABI,
@@ -32,11 +40,205 @@ function getTrustedTokenBalance(address: `0x${string}` | undefined) {
     return balance.valueOf() / 1000000n;
 }
 
-function Borrow() {
+function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalance, isDuration, isFee }:
+    { borrowAmount: bigint, collateralAmount: bigint, duration: bigint, maxFee: bigint, isBalance: boolean, isDuration: boolean, isFee: boolean }) {
+    const [showGoodPoolsMenu, setShowGoodPoolsMenu] = useState(false);
+    const pools = [];
+    const poolsAmount = getPoolsAmount();
+    console.log("Borrow amount:", borrowAmount);
+    for (let i = 0n; i < poolsAmount; ++i) {
+        const pool = getPool(i);
+        if (pool.apr < maxFee && pool.amount >= borrowAmount && pool.isActive) {
+            pools.push(pool);
+            console.log("Pool number", i, ":", pool);
+        }
+    }
+
+    const formComplete = () => {
+        return collateralAmount > 0 && duration > 0 && maxFee > 0;
+    }
+
+    const { writeContract: writeContractApprove } = useWriteContract();
+    async function approve(poolFee: bigint) {
+        writeContractApprove({
+            address: trustedTokenAddress,
+            abi: trustedTokenABI,
+            functionName: 'approve',
+            args: [p2ploansAddress, collateralAmount],
+        })
+    };
+
+    const { writeContract: writeContractBorrow } = useWriteContract();
+    async function makeBorrow(poolId: bigint) {
+        writeContractBorrow({
+            address: p2ploansAddress,
+            abi: p2ploansABI,
+            functionName: 'makeBorrow',
+            args: [borrowAmount, collateralAmount, duration, poolId],
+        });
+    };
+
+    async function handleMakeBorrow(poolId: bigint, poolFee: bigint) {
+        setShowGoodPoolsMenu(false);
+        await approve(poolFee);
+        await makeBorrow(poolId);
+    }
+
+    return (
+        <>
+            <button
+                className={`w-full px-6 py-2 ${isBalance && isDuration && isFee && formComplete() ? 'bg-lime-600 text-white rounded-lg hover:bg-lime-700 transition-colors' : 'bg-gray-300 text-white rounded-lg'}`}
+                disabled={!isBalance || !isDuration || !isFee || !formComplete()}
+                onClick={() => setShowGoodPoolsMenu(true)}>
+                Submit Borrow Request
+            </button>
+            {
+                showGoodPoolsMenu && (
+                    <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
+                        <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full space-y-3">
+                            <p className="text-lg font-semibold mb-4">Select pool</p>
+                            <div className="grid gap-4">
+                                {pools.map((pool) => (
+                                    <button
+                                        key={pool.id}
+                                        className="border rounded-lg p-4 hover:border-lime-500 transition-colors"
+                                        onClick={() => handleMakeBorrow(pool.id, pool.apr)}
+                                    >
+                                        {pool.isLoaded ? (
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <p className="text-lg font-semibold">
+                                                        {formatEther(pool.amount)} ETH
+                                                    </p>
+
+                                                    <p className="text-sm text-gray-600">
+                                                        Activity: {pool.isActive ? "Yes" : "No"}
+                                                    </p>
+                                                    <p className="text-sm text-gray-600">
+                                                        Pool ID: {pool.id}
+                                                    </p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-lg font-semibold text-blue-600">
+                                                        {pool.apr}% Pool fee
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex justify-center items-center py-4">
+                                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lime-600"></div>
+                                                <span className="ml-3">Loading pool data...</span>
+                                            </div>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    onClick={() => setShowGoodPoolsMenu(false)}
+                                    className="px-4 py-2 text-gray-600 hover:text-lime-400 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+
+                    </div >
+                )
+            }
+        </>
+    )
+}
+
+function BorrowRequest({ usdtBalance }: { usdtBalance: bigint | undefined }) {
     const [borrowAmount, setBorrowAmount] = useState('');
     const [collateralAmount, setCollateralAmount] = useState('');
     const [duration, setDuration] = useState('');
+    const [maxFee, setMaxFee] = useState('');
     const ethToUsdt = 2010.42;
+
+    const checkBalance = () => {
+        return usdtBalance === undefined || usdtBalance >= Number(collateralAmount);
+    }
+
+    const checkDuration = () => {
+        return Number(duration) <= 90;
+    }
+
+    const checkFee = () => {
+        return Number(maxFee) <= 99 && Number(maxFee) >= 0;
+    }
+
+    function getCorrectEthersString(amount: string) {
+        return amount === '' ? '0' : amount.split(',').join('');
+    }
+
+    return (
+        <div className="space-y-4">
+            <input
+                type="number"
+                value={borrowAmount}
+                onChange={(e) => {
+                    setBorrowAmount(e.target.value);
+                    if (e.target.value) {
+                        setCollateralAmount(e.target.value * ethToUsdt);
+                    } else {
+                        setCollateralAmount(e.target.value);
+                    }
+                }}
+                placeholder="Amount to borrow (ETH)"
+                min="0"
+                className={`w-full px-4 py-2 rounded border focus:outline-none ${checkBalance() ? 'focus:ring-2 focus:ring-lime-500' : 'ring-2 ring-red-300'}`}
+                autoFocus
+            />
+            <input
+                type="number"
+                value={collateralAmount}
+                onChange={(e) => {
+                    setCollateralAmount(e.target.value);
+                    if (e.target.value) {
+                        setBorrowAmount(e.target.value / ethToUsdt);
+                    } else {
+                        setBorrowAmount(e.target.value);
+                    }
+                }}
+                placeholder="Collateral amount (USDT)"
+                min="0"
+                className={`w-full px-4 py-2 rounded border focus:outline-none ${checkBalance() ? 'focus:ring-2 focus:ring-lime-500' : 'ring-2 ring-red-300'}`}
+            />
+            <input
+                type="number"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                placeholder="Loan duration (days)"
+                min="1"
+                onKeyDown={(evt) => evt.key === '.' && evt.preventDefault()}
+                className={`w-full px-4 py-2 rounded border focus:outline-none ${checkDuration() ? 'focus:ring-2 focus:ring-lime-500' : 'ring-2 ring-red-300'}`}
+            />
+            <input
+                type="number"
+                value={maxFee}
+                onChange={(e) => setMaxFee(e.target.value)}
+                placeholder="Max loan fee (in %)"
+                min="0"
+                onKeyDown={(evt) => evt.key === '.' && evt.preventDefault()}
+                className={`w-full px-4 py-2 rounded border focus:outline-none ${checkFee() ? 'focus:ring-2 focus:ring-lime-500' : 'ring-2 ring-red-300'}`}
+            />
+            <MakeBorrow
+                borrowAmount={BigInt(parseEther(getCorrectEthersString(borrowAmount.toLocaleString())))}
+                collateralAmount={BigInt(parseUnits(getCorrectEthersString(collateralAmount.toLocaleString()), 6))}
+                duration={BigInt(duration) * 86400n}
+                maxFee={BigInt(maxFee)}
+                isBalance={checkBalance()}
+                isDuration={checkDuration()}
+                isFee={checkFee()}
+            />
+        </div>
+    );
+}
+
+function Borrow({ usdtBalance }: { usdtBalance: bigint | undefined }) {
 
     return (
         <div className="bg-green-50 rounded-lg p-6">
@@ -44,53 +246,119 @@ function Borrow() {
                 <CircleDollarSign className="w-5 h-5" />
                 Borrow Request
             </h3>
-            <div className="space-y-4">
-                <input
-                    type="number"
-                    value={borrowAmount}
-                    onChange={(e) => {
-                        setBorrowAmount(e.target.value);
-                        if (e.target.value) {
-                            setCollateralAmount(ethToUsdt * e.target.value);
-                        } else {
-                            setCollateralAmount(e.target.value);
-                        }
-                    }}
-                    placeholder="Amount to borrow (ETH)"
-                    min="0"
-                    className="w-full px-4 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-green-500"
-                    autoFocus
-                />
-                <input
-                    type="number"
-                    value={collateralAmount}
-                    onChange={(e) => setCollateralAmount(e.target.value)}
-                    placeholder="Collateral amount (USDT)"
-                    min="0"
-                    disabled
-                    className="w-full px-4 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-                <input
-                    type="number"
-                    value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
-                    placeholder="Loan duration (days)"
-                    min="1"
-                    className="w-full px-4 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-                <button
-                    className="w-full px-6 py-2 bg-lime-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                    Submit Borrow Request
-                </button>
+            <BorrowRequest usdtBalance={usdtBalance} />
+        </div>
+    );
+}
+
+function getBorrower(address: `0x${string}` | undefined) {
+    if (address === undefined) {
+        address = `0x${''}`;
+    }
+
+    const { data: borrower, isSuccess } = useReadContract({
+        address: p2ploansAddress,
+        abi: p2ploansABI,
+        functionName: 'borrowers',
+        args: [address],
+    });
+
+    if (isSuccess) {
+        return { isActive: borrower };
+    }
+
+    return { isActive: false };
+}
+
+
+function BecomeBorrower({ address }: { address: `0x${string}` | undefined }) {
+    const { isPending, writeContract } = useWriteContract();
+    const borrower = getBorrower(address);
+
+    async function becomeBorrower() {
+        writeContract({
+            address: p2ploansAddress,
+            abi: p2ploansABI,
+            functionName: 'becomeBorrower',
+            args: [],
+        })
+    };
+
+    return (
+        <>
+            {borrower.isActive ? (
+                < div className="bg-lime-50 rounded-lg p-6 flex items-center text-lg font-semibold">
+                    <div className="flex text-lg gap-4">
+                        Your borrower status: Active
+                    </div>
+                </div >
+            ) : (
+                <div className="bg-lime-50 rounded-lg p-6">
+                    {isPending ? (<div className="flex justify-center items-center py-4">
+                        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-lime-600"></div>
+                    </div>
+                    ) : (
+                        <>
+                            <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
+                                <ArrowRightLeft className="w-5 h-5" />
+                                Join community
+                            </h3 >
+                            <div className="flex gap-4">
+                                <button
+                                    className="px-6 py-2 bg-lime-600 text-white rounded-lg hover:bg-lime-700 transition-colors"
+                                    onClick={becomeBorrower}
+                                >
+                                    Become Borrower
+                                </button>
+                            </div>
+                        </>)}
+                </div >
+            )
+            }
+        </>
+    );
+}
+
+function BorrowerInfo({ usdtBalance, ethBalance, address }: {
+    address: `0x${string}` | undefined,
+    usdtBalance: bigint | undefined,
+    ethBalance: { decimals: number; formatted: string; symbol: string; value: bigint; } | undefined
+}) {
+    return (
+        <div className="grid md:grid-rows-3 gap-6">
+            <div className="bg-lime-50 rounded-lg p-6">
+                <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
+                    <ShieldCheck className="w-5 h-5" />
+                    Your Collateral Balance
+                </h3>
+                <p className="text-2xl font-bold text-lime-700">
+                    {usdtBalance !== undefined ? usdtBalance : '---'} USDT
+                </p>
+                <p className="text-sm text-gray-600 mt-2">
+                    Available for collateral
+                </p>
             </div>
+
+            <div className="bg-lime-50 rounded-lg p-6">
+                <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
+                    <Coins className="w-5 h-5" />
+                    Your ETH Balance
+                </h3>
+                <p className="text-2xl font-bold text-lime-700">
+                    {ethBalance ? formatEther(ethBalance.value).slice(0, 10) : '---'} ETH
+                </p>
+            </div>
+
+            <BecomeBorrower address={address} />
+
         </div>
     );
 }
 
 export function Borrowing() {
     const { address } = useAccount();
-    const balance = getTrustedTokenBalance(address);
+    const { data: ethBalance } = useBalance({ address });
+    const usdtBalance = getTrustedTokenBalance(address);
 
     const loanRequests: LoanRequest[] = [
         {
@@ -118,20 +386,8 @@ export function Borrowing() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                    <Borrow />
-
-                    <div className="bg-lime-50 rounded-lg p-6">
-                        <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
-                            <ShieldCheck className="w-5 h-5" />
-                            Your Collateral Balance
-                        </h3>
-                        <p className="text-2xl font-bold text-lime-700">
-                            {balance ? balance : '---'} USDT
-                        </p>
-                        <p className="text-sm text-gray-600 mt-2">
-                            Available for collateral
-                        </p>
-                    </div>
+                    <Borrow usdtBalance={usdtBalance} />
+                    <BorrowerInfo usdtBalance={usdtBalance} ethBalance={ethBalance} address={address} />
                 </div>
             </div>
 
@@ -168,6 +424,6 @@ export function Borrowing() {
                     ))}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

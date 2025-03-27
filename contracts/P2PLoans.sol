@@ -18,7 +18,6 @@ struct LoanPool {
 struct Loan {
     uint256 total;
     uint256 left;
-    uint256 fee;
 
     uint256 loanStart;
     uint256 duration;
@@ -124,14 +123,13 @@ contract P2PLoans {
     }
 
     // Make approve before 
-    function makeBorrow(uint256 amount, uint256 trustedTokenAmount, uint256 duration, uint256 poolId) external { // duration in second
+    function makeBorrow(uint256 amount, uint256 trustedTokenAmount, uint256 duration, uint256 poolId) external { // duration in seconds
         require(borrowers[msg.sender].isActive, "Should be active borrower.");
-        uint256 fee = trustedTokenAmount * appFee / 10000;
-        Loan memory loan = Loan(amount, amount + fee, fee, block.timestamp, duration, msg.sender, false);
+        Loan memory loan = Loan(amount, trustedTokenAmount, block.timestamp, duration, msg.sender, false);
 
         uint256 loanId = loans.length;
 
-        trustedToken.transferFrom(msg.sender, address(this), trustedTokenAmount + fee);
+        trustedToken.transferFrom(msg.sender, address(this), trustedTokenAmount);
 
         pools[poolId].loanIds.push(loanId);
         loans.push(loan);

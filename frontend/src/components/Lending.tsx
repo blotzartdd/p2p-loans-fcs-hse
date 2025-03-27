@@ -3,6 +3,7 @@ import { parseEther, formatEther } from 'ethers';
 import { useAccount, useBalance, useReadContract, useWriteContract } from 'wagmi';
 import { Coins, ArrowRightLeft, Landmark } from 'lucide-react';
 import { p2ploansABI, p2ploansAddress } from '../p2ploansConfig';
+import { getPool, getPoolsAmount } from './utils';
 
 interface Pool {
     id: bigint;
@@ -10,11 +11,6 @@ interface Pool {
     apr: number;
     isActive: boolean;
     isLoaded: boolean;
-}
-
-interface Lender {
-    totalReward: bigint;
-    isActive: boolean;
 }
 
 function Contribute({ poolId }: { poolId: bigint }) {
@@ -188,7 +184,11 @@ function PoolInterface({ poolId }: { poolId: bigint }) {
     );
 }
 
-function JoinPool({ address, poolId }: { address: string, poolId: bigint }) {
+function JoinPool({ address, poolId }: { address: `0x${string}` | undefined, poolId: bigint }) {
+    if (address === undefined) {
+        address = `0x${''}`;
+    }
+
     const { isPending, writeContract } = useWriteContract();
     const inPool = isInPool(address, poolId);
 
@@ -325,7 +325,11 @@ function CreatePool() {
     );
 }
 
-function GetLenderPoolAmount({ poolId, address }: { poolId: bigint, address: string }) {
+function GetLenderPoolAmount({ poolId, address }: { poolId: bigint, address: `0x${string}` | undefined }) {
+    if (address === undefined) {
+        address = `0x${''}`;
+    }
+
     const { data: amount, isSuccess } = useReadContract({
         address: p2ploansAddress,
         abi: p2ploansABI,
@@ -349,42 +353,11 @@ function GetLenderPoolAmount({ poolId, address }: { poolId: bigint, address: str
     );
 }
 
-
-function getPool(poolId: bigint) {
-    const { data: pool, error: error, isSuccess } = useReadContract({
-        address: p2ploansAddress,
-        abi: p2ploansABI,
-        functionName: 'pools',
-        args: [poolId],
-    });
-
-    if (!isSuccess) {
-        return { id: poolId, amount: 0n, apr: 0, isActive: false, isLoaded: false };
+function isInPool(address: `0x${string}` | undefined, poolId: bigint) {
+    if (address === undefined) {
+        address = `0x${''}`;
     }
 
-    console.log(pool);
-    console.log(error);
-    console.log(isSuccess);
-
-    return { id: poolId, amount: pool[1].valueOf(), apr: pool[3].valueOf(), isActive: pool[4], isLoaded: true };
-}
-
-function getPoolsAmount() {
-    const { data: amount, isSuccess } = useReadContract({
-        address: p2ploansAddress,
-        abi: p2ploansABI,
-        functionName: 'getPoolsAmount',
-        args: [],
-    });
-
-    if (!isSuccess) {
-        return 0n;
-    }
-
-    return amount.valueOf();
-}
-
-function isInPool(address: string, poolId: bigint) {
     const { data: isInPool, isSuccess } = useReadContract({
         address: p2ploansAddress,
         abi: p2ploansABI,
@@ -399,8 +372,8 @@ function isInPool(address: string, poolId: bigint) {
     return false;
 }
 
-function Pools({ address, poolsAmount }: { address: string, poolsAmount: bigint }) {
-    const pools: Pool[] = [];
+function Pools({ address, poolsAmount }: { address: `0x${string}` | undefined, poolsAmount: bigint }) {
+    const pools = [];
 
     for (let i = 0n; i < poolsAmount; ++i) {
         const pool = getPool(i);
@@ -448,12 +421,16 @@ function Pools({ address, poolsAmount }: { address: string, poolsAmount: bigint 
     );
 }
 
-function getLender(address: string) {
+function getLender(address: `0x${string}` | undefined) {
+    if (address === undefined) {
+        address = `0x${''}`;
+    }
+
     const { data: lender, isSuccess } = useReadContract({
         address: p2ploansAddress,
         abi: p2ploansABI,
         functionName: 'lenders',
-        args: [address.address],
+        args: [address],
     });
 
     if (isSuccess) {
@@ -463,7 +440,7 @@ function getLender(address: string) {
     return { totalReward: 0, isActive: false };
 }
 
-function BecomeLender(address: string) {
+function BecomeLender({ address }: { address: `0x${string}` | undefined }) {
     const { isPending, writeContract } = useWriteContract();
     const lender = getLender(address);
     console.log(`Lender status: ${lender.isActive}`);
