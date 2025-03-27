@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { parseEther, formatEther, parseUnits, formatUnits } from 'ethers';
-import { useAccount, useBalance, useReadContract, useWriteContract } from 'wagmi';
+import { useAccount, useBalance, useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 import { Wallet, ShieldCheck, CircleDollarSign } from 'lucide-react';
 import { trustedTokenAddress, trustedTokenABI } from '../trustedTokenConfig';
 import { p2ploansAddress, p2ploansABI } from '../p2ploansConfig';
@@ -40,9 +40,14 @@ function getTrustedTokenBalance(address: `0x${string}` | undefined) {
     return balance.valueOf();
 }
 
-function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalance, isDuration, isFee }:
-    { borrowAmount: bigint, collateralAmount: bigint, duration: bigint, maxFee: bigint, isBalance: boolean, isDuration: boolean, isFee: boolean }) {
+// TODO: Add fee to approve and loan, show loans, pay loans, claimRewards and all.
+function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalance, isDuration, isFee, setBorrowAmount, setCollateralAmount, setDuration, setMaxFee }:
+    {
+        borrowAmount: bigint, collateralAmount: bigint, duration: bigint, maxFee: bigint, isBalance: boolean, isDuration: boolean, isFee: boolean,
+        setBorrowAmount: Function, setCollateralAmount: Function, setDuration: Function, setMaxFee: Function
+    }) {
     const [showGoodPoolsMenu, setShowGoodPoolsMenu] = useState(false);
+    const [selectedPoolId, setSelectedPoolId] = useState(-1n);
     const pools = [];
     const poolsAmount = getPoolsAmount();
     console.log("Borrow amount:", borrowAmount);
@@ -58,7 +63,7 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
         return collateralAmount > 0 && duration > 0 && maxFee > 0;
     }
 
-    const { writeContract: writeContractApprove } = useWriteContract();
+    const { data: approveHash, writeContract: writeContractApprove } = useWriteContract();
     async function approve(poolFee: bigint) {
         writeContractApprove({
             address: trustedTokenAddress,
@@ -67,6 +72,10 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
             args: [p2ploansAddress, collateralAmount],
         })
     };
+
+    const { isSuccess: isApproveSuccess } = useWaitForTransactionReceipt({
+        hash: approveHash,
+    });
 
     const { writeContract: writeContractBorrow } = useWriteContract();
     async function makeBorrow(poolId: bigint) {
@@ -79,10 +88,21 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
     };
 
     async function handleMakeBorrow(poolId: bigint, poolFee: bigint) {
-        setShowGoodPoolsMenu(false);
-        await approve(poolFee);
-        await makeBorrow(poolId);
+        setSelectedPoolId(poolId);
+        approve(poolFee);
     }
+
+    useEffect(() => {
+        if (isApproveSuccess && selectedPoolId !== -1n) {
+            makeBorrow(selectedPoolId);
+            setSelectedPoolId(-1n);
+            setShowGoodPoolsMenu(false);
+            setBorrowAmount('');
+            setCollateralAmount('');
+            setDuration('');
+            setMaxFee('');
+        }
+    }, [isApproveSuccess, selectedPoolId]);
 
     return (
         <>
@@ -102,7 +122,7 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
                                     <button
                                         key={pool.id}
                                         className="border rounded-lg p-4 hover:border-lime-500 transition-colors"
-                                        onClick={() => handleMakeBorrow(pool.id, pool.apr)}
+                                        onClick={() => { handleMakeBorrow(pool.id, pool.apr) }}
                                     >
                                         {pool.isLoaded ? (
                                             <div className="flex justify-between items-center">
@@ -233,6 +253,10 @@ function BorrowRequest({ usdtBalance }: { usdtBalance: bigint | undefined }) {
                 isBalance={checkBalance()}
                 isDuration={checkDuration()}
                 isFee={checkFee()}
+                setBorrowAmount={setBorrowAmount}
+                setCollateralAmount={setCollateralAmount}
+                setDuration={setDuration}
+                setMaxFee={setMaxFee}
             />
         </div>
     );

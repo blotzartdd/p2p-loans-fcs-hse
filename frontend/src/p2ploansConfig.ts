@@ -1,4 +1,4 @@
-export const p2ploansAddress = "0x56577F6fcF558913650bD0160A65184E16392B4E" as const;
+export const p2ploansAddress = "0x40eBff130Aa066E8ddE9D1acA929a418f5d5F67A" as const;
 
 export const p2ploansABI = [
     {
@@ -11,6 +11,17 @@ export const p2ploansABI = [
         ],
         "stateMutability": "nonpayable",
         "type": "constructor"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            }
+        ],
+        "name": "SafeERC20FailedOperation",
+        "type": "error"
     },
     {
         "anonymous": false,
@@ -408,19 +419,6 @@ export const p2ploansABI = [
         "type": "function"
     },
     {
-        "inputs": [],
-        "name": "trustedToken",
-        "outputs": [
-            {
-                "internalType": "contract IERC20",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
         "inputs": [
             {
                 "internalType": "uint256",
@@ -438,4 +436,4 @@ export const p2ploansABI = [
         "stateMutability": "nonpayable",
         "type": "function"
     }
-] as const
+] as const;
