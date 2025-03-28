@@ -4,18 +4,18 @@ pragma solidity ^0.8.28;
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "hardhat/console.sol";
-
 struct LoanPool {
     address poolOwner;
 
     uint256 totalAmount;
-    uint256 trustedTokenTotalAmount;
+    uint256 currentAmount;
     uint256 poolLenderFee;
 
     address[] lenders;
     uint256[] loanIds;
     bool isActive;
+
+    uint256 trustedTokenTotalAmount;
 }
 
 struct Loan {
@@ -88,7 +88,7 @@ contract P2PLoans {
         }
 
         uint256[] memory _loanIds;
-        pools.push(LoanPool(msg.sender, msg.value, 0, _poolLenderFee, _lenders, _loanIds, true));
+        pools.push(LoanPool(msg.sender, msg.value, msg.value, _poolLenderFee, _lenders, _loanIds, true, 0));
         lenderToPoolAmount[msg.sender][poolId] += msg.value;
 
         emit PoolCreated(msg.sender);
@@ -104,6 +104,7 @@ contract P2PLoans {
         require(msg.value > 0, "Should contribute more than 0.");
         lenderToPoolAmount[msg.sender][poolId] += msg.value;
         pools[poolId].totalAmount += msg.value;
+        pools[poolId].currentAmount += msg.value;
 
         emit ContributedToPool();
     }  
@@ -116,6 +117,7 @@ contract P2PLoans {
 
         lenderToPoolAmount[msg.sender][poolId] -= amount;
         pools[poolId].totalAmount -= amount;
+        pools[poolId].currentAmount -= amount;
         emit WithdrawnFromPool();
     } 
 
@@ -125,7 +127,6 @@ contract P2PLoans {
         SafeERC20.safeTransfer(trustedToken, msg.sender, lenders[msg.sender].totalReward);
     }
 
-    // Make approve before 
     function makeBorrow(uint256 amount, uint256 trustedTokenAmount, uint256 duration, uint256 poolId) external { // duration in seconds
         require(borrowers[msg.sender].isActive, "Should be active borrower.");
         require(trustedToken.balanceOf(msg.sender) >= trustedTokenAmount, "Insufficient balance.");
@@ -136,21 +137,27 @@ contract P2PLoans {
         uint256 loanId = loans.length;
 
         SafeERC20.safeTransferFrom(trustedToken, msg.sender, address(this), trustedTokenAmount);
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Should send tokens from contract.");
+        pools[poolId].currentAmount -= amount;
+        pools[poolId].trustedTokenTotalAmount += trustedTokenAmount;
 
+        borrowers[msg.sender].loanIds.push(loanId);
         pools[poolId].loanIds.push(loanId);
         loans.push(loan);
 
         emit BorrowMade(loanId);
     }
 
-    function payLoan(uint256 loanId) external payable {
+    function payLoan(uint256 loanId, uint256 poolId, uint256 trustedTokenAmount) external payable {
         require(borrowers[msg.sender].isActive, "Should be borrower.");
         require(loans[loanId].borrower == msg.sender, "Should be valid borrower.");
         require(msg.value > 0, "Should pay > 0.");
 
-        // TODO: Change to convertion
-        loans[loanId].left -= msg.value;
         SafeERC20.safeTransfer(trustedToken, msg.sender, msg.value);
+        loans[loanId].left -= msg.value;
+        pools[poolId].currentAmount += msg.value;
+        pools[poolId].trustedTokenTotalAmount -= trustedTokenAmount;
 
         if (loans[loanId].left == 0) {
             loans[loanId].isPayed = true;
@@ -180,6 +187,10 @@ contract P2PLoans {
 
     function getBorrowerLoans(address borrower) external view returns (uint256[] memory) {
         return borrowers[borrower].loanIds;
+    }
+
+    function getLoan(uint256 loanId) external view returns (Loan memory) {
+        return loans[loanId];
     }
 
     function getPoolsAmount() external view returns (uint256) {

@@ -6,7 +6,7 @@ import { trustedTokenAddress, trustedTokenABI } from '../trustedTokenConfig';
 import { p2ploansAddress, p2ploansABI } from '../p2ploansConfig';
 import { Coins, ArrowRightLeft } from 'lucide-react';
 
-import { getPoolsAmount, getPool } from './utils';
+import { getPoolsAmount, getPool, getBorrowerLoanIds, getLoan, getHumanTime } from './utils';
 
 interface LoanRequest {
     id: number;
@@ -53,7 +53,7 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
     console.log("Borrow amount:", borrowAmount);
     for (let i = 0n; i < poolsAmount; ++i) {
         const pool = getPool(i);
-        if (pool.apr < maxFee && pool.amount >= borrowAmount && pool.isActive) {
+        if (pool.apr < maxFee && pool.currentAmount >= borrowAmount && pool.isActive) {
             pools.push(pool);
             console.log("Pool number", i, ":", pool);
         }
@@ -77,7 +77,7 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
         hash: approveHash,
     });
 
-    const { writeContract: writeContractBorrow } = useWriteContract();
+    const { writeContract: writeContractBorrow, isPending: isBorrowPending } = useWriteContract();
     async function makeBorrow(poolId: bigint) {
         writeContractBorrow({
             address: p2ploansAddress,
@@ -112,47 +112,58 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
                 onClick={() => setShowGoodPoolsMenu(true)}>
                 Submit Borrow Request
             </button>
+            {isBorrowPending === true && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
+                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-lime-600"></div>
+                </div>
+            )}
+
             {
                 showGoodPoolsMenu && (
                     <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
                         <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full space-y-3">
                             <p className="text-lg font-semibold mb-4">Select pool</p>
-                            <div className="grid gap-4">
-                                {pools.map((pool) => (
-                                    <button
-                                        key={pool.id}
-                                        className="border rounded-lg p-4 hover:border-lime-500 transition-colors"
-                                        onClick={() => { handleMakeBorrow(pool.id, pool.apr) }}
-                                    >
-                                        {pool.isLoaded ? (
-                                            <div className="flex justify-between items-center">
-                                                <div>
-                                                    <p className="text-lg font-semibold">
-                                                        {formatEther(pool.amount)} ETH
-                                                    </p>
+                            {pools.length === 0 ? (
+                                <div className="items-center">
+                                    There is no pools for your request, please check active pools and change parameters
+                                </div>) :
+                                (<div className="grid gap-4">
+                                    {pools.map((pool) => (
+                                        <button
+                                            key={pool.id}
+                                            className="border rounded-lg p-4 hover:border-lime-500 transition-colors"
+                                            onClick={() => { handleMakeBorrow(pool.id, pool.apr) }}
+                                        >
+                                            {pool.isLoaded ? (
+                                                <div className="flex justify-between items-center">
+                                                    <div>
+                                                        <p className="text-lg font-semibold">
+                                                            {formatEther(pool.currentAmount)} ETH
+                                                        </p>
 
-                                                    <p className="text-sm text-gray-600">
-                                                        Activity: {pool.isActive ? "Yes" : "No"}
-                                                    </p>
-                                                    <p className="text-sm text-gray-600">
-                                                        Pool ID: {pool.id}
-                                                    </p>
+                                                        <p className="text-sm text-gray-600">
+                                                            Activity: {pool.isActive ? "Yes" : "No"}
+                                                        </p>
+                                                        <p className="text-sm text-gray-600">
+                                                            Pool ID: {pool.id}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-lg font-semibold text-blue-600">
+                                                            {pool.apr}% Pool fee
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="text-lg font-semibold text-blue-600">
-                                                        {pool.apr}% Pool fee
-                                                    </p>
+                                            ) : (
+                                                <div className="flex justify-center items-center py-4">
+                                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lime-600"></div>
+                                                    <span className="ml-3">Loading pool data...</span>
                                                 </div>
-                                            </div>
-                                        ) : (
-                                            <div className="flex justify-center items-center py-4">
-                                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lime-600"></div>
-                                                <span className="ml-3">Loading pool data...</span>
-                                            </div>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                                )}
 
                             <div className="flex justify-end space-x-3">
                                 <button
@@ -379,33 +390,64 @@ function BorrowerInfo({ usdtBalance, ethBalance, address }: {
     );
 }
 
+function Loans({ loanIds }: { loanIds: bigint[] }) {
+    const loans = [];
+    for (let i = 0; i < loanIds.length; ++i) {
+        loans.push(getLoan(loanIds[i]));
+    }
+
+    return (
+        <div className="grid gap-4">
+            {loans.map((loan) => (
+                <div
+                    key={loan.id}
+                    className="border rounded-lg p-4 hover:border-lime-500 transition-colors"
+                >
+                    {loan.isLoaded ? (<div className="flex justify-between items-center">
+                        <div>
+                            <p className="text-lg font-semibold">
+                                Loan amount: {formatEther(loan.total)} ETH
+                            </p>
+                            <p className="text-sm text-gray-600">
+                                Left to return: {formatEther(loan.left)} ETH
+                            </p>
+                            <p className="text-sm text-gray-600">
+                                Loan start: {getHumanTime(loan.loanStart)}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                                Till: {getHumanTime(loan.loanStart + loan.duration)}
+                            </p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-lg font-semibold text-blue-600">
+                                {loan.isPayed ? "Closed" : "Not closed"}
+                            </p>
+                            <button className="mt-2 px-4 py-1 bg-lime-600 text-white rounded hover:bg-lime-700 transition-colors">
+                                Fund Loan
+                            </button>
+                        </div>
+                    </div>
+                    ) : (<div className="flex justify-center items-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lime-600"></div>
+                        <span className="ml-3">Loading loan data...</span>
+                    </div>)}
+                </div>
+            ))}
+        </div>
+    );
+}
+
 export function Borrowing() {
     const { address } = useAccount();
     const { data: ethBalance } = useBalance({ address });
     const usdtBalance = getTrustedTokenBalance(address);
-
-    const loanRequests: LoanRequest[] = [
-        {
-            id: 1,
-            amount: parseEther('5'),
-            collateral: parseEther('7.5'),
-            duration: 30,
-            apr: 8,
-        },
-        {
-            id: 2,
-            amount: parseEther('10'),
-            collateral: parseEther('15'),
-            duration: 60,
-            apr: 10,
-        },
-    ];
+    const loanIds = getBorrowerLoanIds(address);
 
     return (
         <div className="max-w-4xl mx-auto p-6">
             <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
                 <div className="flex items-center gap-3 mb-6">
-                    <Wallet className="w-8 h-8 text-green-600" />
+                    <Wallet className="w-8 h-8 text-lime-600" />
                     <h2 className="text-2xl font-bold text-gray-800">Borrower panel</h2>
                 </div>
 
@@ -416,37 +458,8 @@ export function Borrowing() {
             </div>
 
             <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-xl font-semibold mb-6">Active Loan Requests</h3>
-                <div className="grid gap-4">
-                    {loanRequests.map((request) => (
-                        <div
-                            key={request.id}
-                            className="border rounded-lg p-4 hover:border-green-500 transition-colors"
-                        >
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <p className="text-lg font-semibold">
-                                        {formatEther(request.amount)} ETH
-                                    </p>
-                                    <p className="text-sm text-gray-600">
-                                        Collateral: {formatEther(request.collateral)} ETH
-                                    </p>
-                                    <p className="text-sm text-gray-600">
-                                        Duration: {request.duration} days
-                                    </p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-lg font-semibold text-blue-600">
-                                        {request.apr}% Loan fee
-                                    </p>
-                                    <button className="mt-2 px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
-                                        Fund Request
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                <h3 className="text-xl font-semibold mb-6">Active Loans</h3>
+                <Loans address={address} loanIds={loanIds} />
             </div>
         </div >
     );

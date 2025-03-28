@@ -7,7 +7,8 @@ import { getPool, getPoolsAmount } from './utils';
 
 interface Pool {
     id: bigint;
-    amount: bigint;
+    totalAmount: bigint;
+    currentAmount: bigint;
     apr: number;
     isActive: boolean;
     isLoaded: boolean;
@@ -16,7 +17,7 @@ interface Pool {
 function Contribute({ poolId }: { poolId: bigint }) {
     const [showContributeMenu, setShowContributeMenu] = useState(false);
     const [amount, setAmount] = useState('');
-    const { isPending, status, writeContract } = useWriteContract();
+    const { isPending, writeContract } = useWriteContract();
 
     async function contribute() {
         writeContract({
@@ -41,6 +42,11 @@ function Contribute({ poolId }: { poolId: bigint }) {
                 onClick={() => setShowContributeMenu(true)}>
                 Contribute
             </button>
+            {isPending === true && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
+                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-lime-600"></div>
+                </div>
+            )}
             {
                 showContributeMenu && (
                     <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
@@ -87,7 +93,7 @@ function Contribute({ poolId }: { poolId: bigint }) {
 function Withdraw({ poolId }: { poolId: bigint }) {
     const [showWithdrawMenu, setShowWithdrawMenu] = useState(false);
     const [amount, setAmount] = useState('');
-    const { isPending, status, writeContract } = useWriteContract();
+    const { isPending, writeContract } = useWriteContract();
 
     async function withdraw() {
         writeContract({
@@ -111,6 +117,11 @@ function Withdraw({ poolId }: { poolId: bigint }) {
                 onClick={() => setShowWithdrawMenu(true)}>
                 Withdraw
             </button>
+            {isPending === true && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
+                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-lime-600"></div>
+                </div>
+            )}
             {
                 showWithdrawMenu && (
                     <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
@@ -155,7 +166,7 @@ function Withdraw({ poolId }: { poolId: bigint }) {
 }
 
 function ClaimRewards({ poolId }: { poolId: bigint }) {
-    const { isPending, status, writeContract } = useWriteContract();
+    const { isPending, writeContract } = useWriteContract();
     // TODO: Check function rewards
 
     async function getLenderReward() {
@@ -168,9 +179,16 @@ function ClaimRewards({ poolId }: { poolId: bigint }) {
     };
 
     return (
-        <button className="mt-2 px-4 py-1 bg-lime-600 text-white rounded hover:bg-lime-700 transition-colors" onClick={getLenderReward} disabled={isPending}>
-            Claim rewards
-        </button>
+        <>
+            {isPending === true && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
+                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-lime-600"></div>
+                </div>
+            )}
+            <button className="mt-2 px-4 py-1 bg-lime-600 text-white rounded hover:bg-lime-700 transition-colors" onClick={getLenderReward} disabled={isPending}>
+                Claim rewards
+            </button>
+        </>
     );
 }
 
@@ -226,7 +244,7 @@ function CreatePool() {
     const [amount, setAmount] = useState('');
     const [fee, setFee] = useState('');
     const [lenders, setLenders] = useState([]);
-    const { writeContract } = useWriteContract();
+    const { writeContract, isPending } = useWriteContract();
 
     async function createPool() {
         writeContract({
@@ -251,6 +269,11 @@ function CreatePool() {
                 onClick={() => setShowCreatePoolMenu(true)}>
                 Create pool
             </button>
+            {isPending === true && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
+                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-lime-600"></div>
+                </div>
+            )}
             {
                 showCreatePoolMenu && (
                     <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
@@ -390,7 +413,7 @@ function Pools({ address, poolsAmount }: { address: `0x${string}` | undefined, p
                     <div className="flex justify-between items-center">
                         <div>
                             <p className="text-lg font-semibold">
-                                {formatEther(pool.amount)} ETH
+                                {formatEther(pool.currentAmount)} / {formatEther(pool.totalAmount)} ETH
                             </p>
                             <GetLenderPoolAmount poolId={pool.id} address={address} />
 
@@ -472,20 +495,27 @@ function BecomeLender({ address }: { address: `0x${string}` | undefined }) {
                         </div>
                     </div>
                 </div>) : (
-                <div className="bg-green-50 rounded-lg p-6">
-                    <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
-                        <ArrowRightLeft className="w-5 h-5" />
-                        Join community
-                    </h3 >
-                    <div className="flex gap-4">
-                        <button
-                            className="px-6 py-2 bg-lime-600 text-white rounded-lg hover:bg-lime-700 transition-colors"
-                            onClick={becomeLender}
-                        >
-                            Become Lender
-                        </button>
-                    </div>
-                </div >
+                <>
+                    {isPending === true && (
+                        <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
+                            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-lime-600"></div>
+                        </div>
+                    )}
+                    <div className="bg-green-50 rounded-lg p-6">
+                        <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
+                            <ArrowRightLeft className="w-5 h-5" />
+                            Join community
+                        </h3 >
+                        <div className="flex gap-4">
+                            <button
+                                className="px-6 py-2 bg-lime-600 text-white rounded-lg hover:bg-lime-700 transition-colors"
+                                onClick={becomeLender}
+                            >
+                                Become Lender
+                            </button>
+                        </div>
+                    </div >
+                </>
             )
             }
         </>

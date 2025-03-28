@@ -1,4 +1,4 @@
-export const p2ploansAddress = "0x40eBff130Aa066E8ddE9D1acA929a418f5d5F67A" as const;
+export const p2ploansAddress = "0xbdb580EB443683Cd183c99c545195cDd346ad50A" as const;
 
 export const p2ploansABI = [
     {
@@ -228,6 +228,57 @@ export const p2ploansABI = [
         "type": "function"
     },
     {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "loanId",
+                "type": "uint256"
+            }
+        ],
+        "name": "getLoan",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "total",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "left",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "loanStart",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "duration",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "borrower",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "isPayed",
+                        "type": "bool"
+                    }
+                ],
+                "internalType": "struct Loan",
+                "name": "",
+                "type": "tuple"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [],
         "name": "getPoolsAmount",
         "outputs": [
@@ -372,6 +423,16 @@ export const p2ploansABI = [
                 "internalType": "uint256",
                 "name": "loanId",
                 "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "poolId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "trustedTokenAmount",
+                "type": "uint256"
             }
         ],
         "name": "payLoan",
@@ -401,7 +462,7 @@ export const p2ploansABI = [
             },
             {
                 "internalType": "uint256",
-                "name": "trustedTokenTotalAmount",
+                "name": "currentAmount",
                 "type": "uint256"
             },
             {
@@ -413,6 +474,11 @@ export const p2ploansABI = [
                 "internalType": "bool",
                 "name": "isActive",
                 "type": "bool"
+            },
+            {
+                "internalType": "uint256",
+                "name": "trustedTokenTotalAmount",
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",
