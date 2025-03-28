@@ -1,5 +1,6 @@
 import { p2ploansABI, p2ploansAddress } from '../p2ploansConfig';
 import { useReadContract } from 'wagmi';
+import { trustedTokenABI, trustedTokenAddress } from '../trustedTokenConfig';
 
 export function getPool(poolId: bigint) {
     const { data: pool, error: error, isSuccess } = useReadContract({
@@ -69,6 +70,49 @@ export function getPoolsAmount() {
     }
 
     return amount.valueOf();
+}
+
+export function getBorrower(address: `0x${string}` | undefined) {
+    if (address === undefined) {
+        address = `0x${''}`;
+    }
+
+    const { data: borrower, isSuccess } = useReadContract({
+        address: p2ploansAddress,
+        abi: p2ploansABI,
+        functionName: 'borrowers',
+        args: [address],
+    });
+
+    if (isSuccess) {
+        return { isActive: borrower };
+    }
+
+    return { isActive: false };
+}
+
+export function getTrustedTokenBalance(address: `0x${string}` | undefined) {
+    if (address === undefined) {
+        address = `0x${''}`;
+    }
+
+    const { data: balance, isSuccess } = useReadContract({
+        address: trustedTokenAddress,
+        abi: trustedTokenABI,
+        functionName: 'balanceOf',
+        args: [address],
+    });
+
+
+    if (!address) {
+        return undefined;
+    }
+
+    if (!isSuccess) {
+        return undefined;
+    }
+
+    return balance.valueOf();
 }
 
 export function getHumanTime(timestamp: bigint) {

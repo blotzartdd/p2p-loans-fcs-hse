@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { parseEther, formatEther, parseUnits, formatUnits } from 'ethers';
-import { useAccount, useBalance, useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+import { useAccount, useBalance, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 import { Wallet, ShieldCheck, CircleDollarSign } from 'lucide-react';
 import { trustedTokenAddress, trustedTokenABI } from '../trustedTokenConfig';
 import { p2ploansAddress, p2ploansABI } from '../p2ploansConfig';
 import { Coins, ArrowRightLeft } from 'lucide-react';
 
-import { getPoolsAmount, getPool, getBorrowerLoanIds, getLoan, getHumanTime } from './utils';
+import { getPoolsAmount, getPool, getBorrowerLoanIds, getLoan, getHumanTime, getBorrower, getTrustedTokenBalance } from './utils';
 
 interface LoanRequest {
     id: number;
@@ -14,30 +14,6 @@ interface LoanRequest {
     collateral: bigint;
     duration: number;
     apr: number;
-}
-
-function getTrustedTokenBalance(address: `0x${string}` | undefined) {
-    if (address === undefined) {
-        address = `0x${''}`;
-    }
-
-    const { data: balance, isSuccess } = useReadContract({
-        address: trustedTokenAddress,
-        abi: trustedTokenABI,
-        functionName: 'balanceOf',
-        args: [address],
-    });
-
-
-    if (!address) {
-        return undefined;
-    }
-
-    if (!isSuccess) {
-        return undefined;
-    }
-
-    return balance.valueOf();
 }
 
 // TODO: Add fee to approve and loan, show loans, pay loans, claimRewards and all.
@@ -174,7 +150,6 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
                                 </button>
                             </div>
                         </div>
-
                     </div >
                 )
             }
@@ -286,25 +261,6 @@ function Borrow({ usdtBalance }: { usdtBalance: bigint | undefined }) {
     );
 }
 
-function getBorrower(address: `0x${string}` | undefined) {
-    if (address === undefined) {
-        address = `0x${''}`;
-    }
-
-    const { data: borrower, isSuccess } = useReadContract({
-        address: p2ploansAddress,
-        abi: p2ploansABI,
-        functionName: 'borrowers',
-        args: [address],
-    });
-
-    if (isSuccess) {
-        return { isActive: borrower };
-    }
-
-    return { isActive: false };
-}
-
 
 function BecomeBorrower({ address }: { address: `0x${string}` | undefined }) {
     const { isPending, writeContract } = useWriteContract();
@@ -396,6 +352,8 @@ function Loans({ loanIds }: { loanIds: bigint[] }) {
         loans.push(getLoan(loanIds[i]));
     }
 
+    // TODO: Get pool id for pay loan
+
     return (
         <div className="grid gap-4">
             {loans.map((loan) => (
@@ -419,12 +377,10 @@ function Loans({ loanIds }: { loanIds: bigint[] }) {
                             </p>
                         </div>
                         <div className="text-right">
-                            <p className="text-lg font-semibold text-blue-600">
+                            <p className="text-lg font-semibold text-red-600">
                                 {loan.isPayed ? "Closed" : "Not closed"}
                             </p>
-                            <button className="mt-2 px-4 py-1 bg-lime-600 text-white rounded hover:bg-lime-700 transition-colors">
-                                Fund Loan
-                            </button>
+                            <PayLoan poolId={0n} loanId={loan.id} />
                         </div>
                     </div>
                     ) : (<div className="flex justify-center items-center py-4">
@@ -434,6 +390,81 @@ function Loans({ loanIds }: { loanIds: bigint[] }) {
                 </div>
             ))}
         </div>
+    );
+}
+
+function PayLoan({ poolId, loanId }: { poolId: bigint, loanId: bigint }) {
+    const [showPayLoanMenu, setShowPayLoanMenu] = useState(false);
+    const [amount, setAmount] = useState('');
+    const { isPending, writeContract } = useWriteContract();
+
+    async function payLoan() {
+        writeContract({
+            address: p2ploansAddress,
+            abi: p2ploansABI,
+            functionName: 'payLoan',
+            args: [poolId, loanId, BigInt(amount) * 1n], // TODO: change to convert
+            value: BigInt(parseEther(amount)),
+        })
+    };
+
+    async function handlePayLoan() {
+        setShowPayLoanMenu(false);
+        payLoan();
+        setAmount('');
+    };
+
+    return (
+        <>
+            <button className="mt-2 px-4 py-1 bg-lime-600 text-white rounded hover:bg-lime-700 transition-colors"
+                onClick={() => setShowPayLoanMenu(true)}>
+                Fund loan
+            </button>
+            {isPending === true && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
+                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-lime-600"></div>
+                </div>
+            )}
+            {
+                showPayLoanMenu && (
+                    <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
+                        <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
+                            <p className="text-lg font-semibold mb-4">Loan payment</p>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Amount
+                                </label>
+                                <input
+                                    type="number"
+                                    id="amount"
+                                    value={amount}
+                                    onChange={(e) => setAmount(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                    placeholder="Enter amount"
+                                    min="0"
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    onClick={() => setShowPayLoanMenu(false)}
+                                    className="px-4 py-2 text-gray-600 hover:text-lime-400 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handlePayLoan}
+                                    className="px-4 py-2 bg-lime-600 text-white rounded hover:bg-lime-700 transition-colors"
+                                >
+                                    Confirm
+                                </button>
+                            </div>
+                        </div>
+                    </div >
+                )
+            }
+        </>
     );
 }
 
