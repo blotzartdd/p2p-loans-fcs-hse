@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { parseEther, formatEther } from 'ethers';
+import { parseEther, formatEther, formatUnits } from 'ethers';
 import { useAccount, useBalance, useReadContract, useWriteContract } from 'wagmi';
 import { Coins, ArrowRightLeft, Landmark } from 'lucide-react';
 import { p2ploansABI, p2ploansAddress } from '../p2ploansConfig';
@@ -167,7 +167,6 @@ function Withdraw({ poolId }: { poolId: bigint }) {
 
 function ClaimRewards({ poolId }: { poolId: bigint }) {
     const { isPending, writeContract } = useWriteContract();
-    // TODO: Check function rewards
 
     async function getLenderReward() {
         writeContract({
@@ -490,7 +489,7 @@ function BecomeLender({ address }: { address: `0x${string}` | undefined }) {
                         <div className="flex text-lg gap-4">
                             Your reward from pools:
                             <div className="font-bold text-lime-700">
-                                {lender.totalReward} ETH
+                                {formatUnits(lender.totalReward, 6)} USDT
                             </div>
                         </div>
                     </div>

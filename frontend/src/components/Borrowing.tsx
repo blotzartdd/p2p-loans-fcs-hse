@@ -16,20 +16,23 @@ interface LoanRequest {
     apr: number;
 }
 
-// TODO: Add fee to approve and loan, show loans, pay loans, claimRewards and all.
-function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalance, isDuration, isFee, setBorrowAmount, setCollateralAmount, setDuration, setMaxFee }:
+function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalance, isDuration, isFee, setBorrowAmount, setCollateralAmount, setDuration, setMaxFee, usdtBalance }:
     {
         borrowAmount: bigint, collateralAmount: bigint, duration: bigint, maxFee: bigint, isBalance: boolean, isDuration: boolean, isFee: boolean,
-        setBorrowAmount: Function, setCollateralAmount: Function, setDuration: Function, setMaxFee: Function
+        setBorrowAmount: Function, setCollateralAmount: Function, setDuration: Function, setMaxFee: Function, usdtBalance: bigint | undefined
     }) {
+    if (usdtBalance === undefined) {
+        usdtBalance = 0n;
+    }
     const [showGoodPoolsMenu, setShowGoodPoolsMenu] = useState(false);
     const [selectedPoolId, setSelectedPoolId] = useState(-1n);
+    const [selectedPoolFee, setSelectedPoolFee] = useState(0n);
     const pools = [];
     const poolsAmount = getPoolsAmount();
     console.log("Borrow amount:", borrowAmount);
     for (let i = 0n; i < poolsAmount; ++i) {
         const pool = getPool(i);
-        if (pool.apr < maxFee && pool.currentAmount >= borrowAmount && pool.isActive) {
+        if (pool.apr <= maxFee && pool.currentAmount >= borrowAmount && pool.isActive) {
             pools.push(pool);
             console.log("Pool number", i, ":", pool);
         }
@@ -40,12 +43,12 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
     }
 
     const { data: approveHash, writeContract: writeContractApprove } = useWriteContract();
-    async function approve(poolFee: bigint) {
+    async function approve(collateralWithFee: bigint) {
         writeContractApprove({
             address: trustedTokenAddress,
             abi: trustedTokenABI,
             functionName: 'approve',
-            args: [p2ploansAddress, collateralAmount],
+            args: [p2ploansAddress, collateralWithFee],
         })
     };
 
@@ -63,9 +66,12 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
         });
     };
 
-    async function handleMakeBorrow(poolId: bigint, poolFee: bigint) {
+    function handleMakeBorrow(poolId: bigint, poolFee: bigint) {
         setSelectedPoolId(poolId);
-        approve(poolFee);
+        setSelectedPoolFee(poolFee);
+
+        const collateralWithFee = collateralAmount + collateralAmount * selectedPoolFee / 100n;
+        approve(collateralWithFee);
     }
 
     useEffect(() => {
@@ -97,7 +103,7 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
             {
                 showGoodPoolsMenu && (
                     <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
-                        <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full space-y-3">
+                        <div className="bg-white p-6 rounded-lg shadow-lg max-w-4xl w-full space-y-3">
                             <p className="text-lg font-semibold mb-4">Select pool</p>
                             {pools.length === 0 ? (
                                 <div className="items-center">
@@ -107,16 +113,16 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
                                     {pools.map((pool) => (
                                         <button
                                             key={pool.id}
-                                            className="border rounded-lg p-4 hover:border-lime-500 transition-colors"
+                                            className={`border rounded-lg p-4 ${collateralAmount + collateralAmount * pool.apr / 100n <= usdtBalance ? "hover:border-lime-500" : "hoved:border-red-100"} transition-colors`}
                                             onClick={() => { handleMakeBorrow(pool.id, pool.apr) }}
+                                            disabled={collateralAmount + collateralAmount * pool.apr / 100n > usdtBalance}
                                         >
                                             {pool.isLoaded ? (
-                                                <div className="flex justify-between items-center">
+                                                <div className="flex justify-between items-center space-x-1">
                                                     <div>
                                                         <p className="text-lg font-semibold">
-                                                            {formatEther(pool.currentAmount)} ETH
+                                                            {formatEther(borrowAmount)} ETH
                                                         </p>
-
                                                         <p className="text-sm text-gray-600">
                                                             Activity: {pool.isActive ? "Yes" : "No"}
                                                         </p>
@@ -124,11 +130,22 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
                                                             Pool ID: {pool.id}
                                                         </p>
                                                     </div>
-                                                    <div className="text-right">
+                                                    <div className="text-center">
                                                         <p className="text-lg font-semibold text-blue-600">
                                                             {pool.apr}% Pool fee
                                                         </p>
                                                     </div>
+                                                    <div className="text-right">
+                                                        <p className="text-sm text-gray-600">
+                                                            In this pool your collateral will be:
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className={`text - sm ${collateralAmount + collateralAmount * pool.apr / 100n > usdtBalance ? "text-red-600" : "text-gray-600"}`}>
+                                                            {formatUnits(collateralAmount + collateralAmount * pool.apr / 100n, 6)} USDT
+                                                        </p>
+                                                    </div>
+
                                                 </div>
                                             ) : (
                                                 <div className="flex justify-center items-center py-4">
@@ -136,9 +153,10 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
                                                     <span className="ml-3">Loading pool data...</span>
                                                 </div>
                                             )}
-                                        </button>
-                                    ))}
-                                </div>
+                                        </button >
+                                    ))
+                                    }
+                                </div >
                                 )}
 
                             <div className="flex justify-end space-x-3">
@@ -149,7 +167,7 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
                                     Cancel
                                 </button>
                             </div>
-                        </div>
+                        </div >
                     </div >
                 )
             }
@@ -162,7 +180,7 @@ function BorrowRequest({ usdtBalance }: { usdtBalance: bigint | undefined }) {
     const [collateralAmount, setCollateralAmount] = useState('');
     const [duration, setDuration] = useState('');
     const [maxFee, setMaxFee] = useState('');
-    const ethToUsdt = 2010.42;
+    const ethToUsdt = 2010.42; // ETH price + 1% App Fee
 
     const checkBalance = () => {
         return usdtBalance === undefined || usdtBalance >= Number(collateralAmount);
@@ -211,6 +229,7 @@ function BorrowRequest({ usdtBalance }: { usdtBalance: bigint | undefined }) {
                 }}
                 placeholder="Collateral amount (USDT)"
                 min="0"
+                disabled
                 className={`w-full px-4 py-2 rounded border focus:outline-none ${checkBalance() ? 'focus:ring-2 focus:ring-lime-500' : 'ring-2 ring-red-300'}`}
             />
             <input
@@ -243,6 +262,7 @@ function BorrowRequest({ usdtBalance }: { usdtBalance: bigint | undefined }) {
                 setCollateralAmount={setCollateralAmount}
                 setDuration={setDuration}
                 setMaxFee={setMaxFee}
+                usdtBalance={usdtBalance}
             />
         </div>
     );
@@ -347,49 +367,108 @@ function BorrowerInfo({ usdtBalance, ethBalance, address }: {
 }
 
 function Loans({ loanIds }: { loanIds: bigint[] }) {
-    const loans = [];
+    const payedLoans = [];
+    const notPayedLoans = [];
     for (let i = 0; i < loanIds.length; ++i) {
-        loans.push(getLoan(loanIds[i]));
+        const loan = getLoan(loanIds[i]);
+        if (loan.isPayed) {
+            payedLoans.push(loan);
+        } else {
+            notPayedLoans.push(loan);
+        }
     }
 
-    // TODO: Get pool id for pay loan
-
     return (
-        <div className="grid gap-4">
-            {loans.map((loan) => (
-                <div
-                    key={loan.id}
-                    className="border rounded-lg p-4 hover:border-lime-500 transition-colors"
-                >
-                    {loan.isLoaded ? (<div className="flex justify-between items-center">
-                        <div>
-                            <p className="text-lg font-semibold">
-                                Loan amount: {formatEther(loan.total)} ETH
-                            </p>
-                            <p className="text-sm text-gray-600">
-                                Left to return: {formatEther(loan.left)} ETH
-                            </p>
-                            <p className="text-sm text-gray-600">
-                                Loan start: {getHumanTime(loan.loanStart)}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                                Till: {getHumanTime(loan.loanStart + loan.duration)}
-                            </p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-lg font-semibold text-red-600">
-                                {loan.isPayed ? "Closed" : "Not closed"}
-                            </p>
-                            <PayLoan poolId={0n} loanId={loan.id} />
-                        </div>
-                    </div>
-                    ) : (<div className="flex justify-center items-center py-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lime-600"></div>
-                        <span className="ml-3">Loading loan data...</span>
-                    </div>)}
+        <>
+            <div className="bg-white rounded-xl shadow-lg p-6 my-4">
+                <h3 className="text-xl font-semibold mb-6">Active Loans</h3>
+                <div className="grid gap-4">
+                    {notPayedLoans.map((loan) => (
+                        <>
+                            {
+                                !loan.isPayed && (
+                                    <div
+                                        key={loan.id}
+                                        className="border rounded-lg p-4 hover:border-lime-500 transition-colors"
+                                    >
+                                        {loan.isLoaded ? (<div className="flex justify-between items-center">
+                                            <div>
+                                                <p className="text-lg font-semibold">
+                                                    Loan amount: {formatEther(loan.totalBorrow)} ETH
+                                                </p>
+                                                <p className="text-sm text-gray-600">
+                                                    Left to return: {formatEther(loan.left)} ETH
+                                                </p>
+                                                <p className="text-sm text-gray-600">
+                                                    Loan collateral without fee: {formatUnits(loan.totalCollateral, 6)} USDT
+                                                </p>
+                                                <p className="text-sm text-gray-600">
+                                                    Loan start: {getHumanTime(loan.loanStart)}
+                                                </p>
+                                                <p className="text-sm text-gray-600">
+                                                    Till: {getHumanTime(loan.loanStart + loan.duration)}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className={`text-lg font-semibold ${loan.isPayed ? "text-lime-600" : "text-red-600"}`}>
+                                                    {loan.isPayed ? "Closed in time" : "Not closed"}
+                                                </p>
+                                                <PayLoan poolId={loan.poolId} loanId={loan.id} />
+                                            </div>
+                                        </div>
+                                        ) : (<div className="flex justify-center items-center py-4">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lime-600"></div>
+                                            <span className="ml-3">Loading loan data...</span>
+                                        </div>)}
+                                    </div>
+                                )
+                            }
+                        </>
+                    ))}
                 </div>
-            ))}
-        </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-6 my-4">
+                <h3 className="text-xl font-semibold mb-6">Finished Loans</h3>
+                <div className="grid gap-4">
+                    {payedLoans.map((loan) => (
+                        <div
+                            key={loan.id}
+                            className="border rounded-lg p-4 hover:border-lime-500 transition-colors"
+                        >
+                            {loan.isLoaded && loan.isPayed ? (<div className="flex justify-between items-center">
+                                <div>
+                                    <p className="text-lg font-semibold">
+                                        Loan amount: {formatEther(loan.totalBorrow)} ETH
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                        Left to return: {formatEther(loan.left)} ETH
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                        Loan collateral without fee: {formatUnits(loan.totalCollateral, 6)} USDT
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                        Loan start: {getHumanTime(loan.loanStart)}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                        Till: {getHumanTime(loan.loanStart + loan.duration)}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className={`text-lg font-semibold ${loan.isPayed ? "text-lime-600" : "text-red-600"}`}>
+                                        {loan.isPayed ? "Closed in time" : "Not closed"}
+                                    </p>
+                                </div>
+                            </div>
+                            ) : (<div className="flex justify-center items-center py-4">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lime-600"></div>
+                                <span className="ml-3">Loading loan data...</span>
+                            </div>)}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </>
     );
 }
 
@@ -397,13 +476,14 @@ function PayLoan({ poolId, loanId }: { poolId: bigint, loanId: bigint }) {
     const [showPayLoanMenu, setShowPayLoanMenu] = useState(false);
     const [amount, setAmount] = useState('');
     const { isPending, writeContract } = useWriteContract();
+    const loan = getLoan(loanId);
 
     async function payLoan() {
         writeContract({
             address: p2ploansAddress,
             abi: p2ploansABI,
             functionName: 'payLoan',
-            args: [poolId, loanId, BigInt(amount) * 1n], // TODO: change to convert
+            args: [poolId, loanId],
             value: BigInt(parseEther(amount)),
         })
     };
@@ -416,58 +496,63 @@ function PayLoan({ poolId, loanId }: { poolId: bigint, loanId: bigint }) {
 
     return (
         <>
-            <button className="mt-2 px-4 py-1 bg-lime-600 text-white rounded hover:bg-lime-700 transition-colors"
-                onClick={() => setShowPayLoanMenu(true)}>
-                Fund loan
-            </button>
-            {isPending === true && (
-                <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
-                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-lime-600"></div>
-                </div>
-            )}
-            {
-                showPayLoanMenu && (
-                    <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
-                        <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
-                            <p className="text-lg font-semibold mb-4">Loan payment</p>
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Amount
-                                </label>
-                                <input
-                                    type="number"
-                                    id="amount"
-                                    value={amount}
-                                    onChange={(e) => setAmount(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-lime-500"
-                                    placeholder="Enter amount"
-                                    min="0"
-                                    autoFocus
-                                />
-                            </div>
-
-                            <div className="flex justify-end space-x-3">
-                                <button
-                                    onClick={() => setShowPayLoanMenu(false)}
-                                    className="px-4 py-2 text-gray-600 hover:text-lime-400 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handlePayLoan}
-                                    className="px-4 py-2 bg-lime-600 text-white rounded hover:bg-lime-700 transition-colors"
-                                >
-                                    Confirm
-                                </button>
-                            </div>
+            {!loan.isPayed &&
+                <>
+                    <button className="mt-2 px-4 py-1 bg-lime-600 text-white rounded hover:bg-lime-700 transition-colors"
+                        onClick={() => setShowPayLoanMenu(true)}>
+                        Pay loan
+                    </button>
+                    {isPending === true && (
+                        <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
+                            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-lime-600"></div>
                         </div>
-                    </div >
-                )
+                    )}
+                    {
+                        showPayLoanMenu && (
+                            <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
+                                <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
+                                    <p className="text-lg font-semibold mb-4">Loan payment</p>
+                                    <div className="mb-4">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Amount
+                                        </label>
+                                        <input
+                                            type="number"
+                                            id="amount"
+                                            value={amount}
+                                            onChange={(e) => setAmount(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                            placeholder="Enter amount"
+                                            min="0"
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    <div className="flex justify-end space-x-3">
+                                        <button
+                                            onClick={() => setShowPayLoanMenu(false)}
+                                            className="px-4 py-2 text-gray-600 hover:text-lime-400 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handlePayLoan}
+                                            className="px-4 py-2 bg-lime-600 text-white rounded hover:bg-lime-700 transition-colors"
+                                        >
+                                            Confirm
+                                        </button>
+                                    </div>
+                                </div>
+                            </div >
+                        )
+                    }
+                </>
             }
         </>
     );
 }
 
+// TODO: Make expired loans
 export function Borrowing() {
     const { address } = useAccount();
     const { data: ethBalance } = useBalance({ address });
@@ -488,10 +573,7 @@ export function Borrowing() {
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-xl font-semibold mb-6">Active Loans</h3>
-                <Loans address={address} loanIds={loanIds} />
-            </div>
+            <Loans loanIds={loanIds} />
         </div >
     );
 }

@@ -1,4 +1,4 @@
-export const p2ploansAddress = "0xbdb580EB443683Cd183c99c545195cDd346ad50A" as const;
+export const p2ploansAddress = "0x03460A025Dfc8156d05e0a445E354EDe6e5aa181" as const;
 
 export const p2ploansABI = [
     {
@@ -241,7 +241,12 @@ export const p2ploansABI = [
                 "components": [
                     {
                         "internalType": "uint256",
-                        "name": "total",
+                        "name": "totalBorrow",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "totalCollateral",
                         "type": "uint256"
                     },
                     {
@@ -260,17 +265,22 @@ export const p2ploansABI = [
                         "type": "uint256"
                     },
                     {
-                        "internalType": "address",
-                        "name": "borrower",
-                        "type": "address"
+                        "internalType": "uint256",
+                        "name": "poolId",
+                        "type": "uint256"
                     },
                     {
                         "internalType": "bool",
                         "name": "isPayed",
                         "type": "bool"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "borrower",
+                        "type": "address"
                     }
                 ],
-                "internalType": "struct Loan",
+                "internalType": "struct IP2PLoans.Loan",
                 "name": "",
                 "type": "tuple"
             }
@@ -427,11 +437,6 @@ export const p2ploansABI = [
             {
                 "internalType": "uint256",
                 "name": "poolId",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "trustedTokenAmount",
                 "type": "uint256"
             }
         ],

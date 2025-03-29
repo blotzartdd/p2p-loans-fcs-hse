@@ -30,12 +30,12 @@ export function getLoan(loanId: bigint) {
     });
 
     if (!isSuccess) {
-        return { id: loanId, total: 0n, left: 0n, loanStart: 0n, duration: 0n, isPayed: false, isLoaded: false };
+        return { id: loanId, poolId: 0n, totalBorrow: 0n, totalCollateral: 0n, left: 0n, loanStart: 0n, duration: 0n, isPayed: false, isLoaded: false };
     }
 
     console.log(error);
 
-    return { id: loanId, total: loan.total, left: loan.left, loanStart: loan.loanStart, duration: loan.duration, isPayed: loan.isPayed, isLoaded: true };
+    return { id: loanId, poolId: loan.poolId, totalBorrow: loan.totalBorrow, totalCollateral: loan.totalCollateral, left: loan.left, loanStart: loan.loanStart, duration: loan.duration, isPayed: loan.isPayed, isLoaded: true };
 }
 
 export function getBorrowerLoanIds(address: `0x${string}` | undefined) {
