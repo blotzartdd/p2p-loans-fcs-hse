@@ -1,65 +1,70 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import "hardhat/console.sol";
-import "./IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-struct LoanPool {
-    address poolOwner;
+interface IP2PLoans {
+    struct LoanPool {
+        address poolOwner;
 
-    uint256 totalAmount;
-    // uint256 trustedTokenTotalAmount;
-    uint256 poolLenderFee;
+        uint256 totalAmount;
+        uint256 currentAmount;
+        uint256 poolLenderFee;
 
-    address[] lenders;
-    uint256[] loanIds;
-    bool isActive;
-}
+        address[] lenders;
+        uint256[] loanIds;
+        bool isActive;
 
-struct Loan {
-    uint256 total;
-    uint256 left;
-    uint256 fee;
+        uint256 trustedTokenTotalAmount;
+    }
 
-    uint256 loanStart;
-    uint256 duration;
+    struct Loan {
+        uint256 totalBorrow;
+        uint256 totalCollateral;
+        uint256 left;
 
-    address borrower;
-    bool isPayed;
-}
+        uint256 loanStart;
+        uint256 duration;
 
-struct LenderInfo {
-    uint256[] poolIds;
-    uint256 totalReward;
-    bool isActive;
-}
+        uint256 poolId;
+        bool isPayed;
 
-struct BorrowerInfo {
-    uint256[] loanIds;
-    bool isActive;
-}
+        address borrower;
+    }
 
-contract P2PLoans {
-    address public owner;
-    address private trustedTokenAddress = 0x7169D38820dfd117C3FA1f22a697dBA58d90BA06; // Sepolia Tether USD
-    IERC20 public trustedToken;
+    struct LenderInfo {
+        uint256[] poolIds;
+        uint256 totalReward;
+        bool isActive;
+    }
 
-    uint256 public appFee; // [0, 100]
-
-    LoanPool[] public pools;
-    
-    mapping(address => LenderInfo) public lenders;
-    mapping(address => mapping(uint256 => uint256)) public lenderToPoolAmount;
-    mapping(address => BorrowerInfo) public borrowers;
-    Loan[] loans;
+    struct BorrowerInfo {
+        uint256[] loanIds;
+        bool isActive;
+    }
 
     event PoolCreated(address indexed creator);
     event WithdrawnFromPool();
     event ContributedToPool();
-    event BorrowMade();
+    event BorrowMade(uint256 loanId);
     event NewLender();
     event NewBorrower();
     event LoanPayed(uint256 loanId);
+}
+
+contract P2PLoans is IP2PLoans {
+    address public owner;
+    address private trustedTokenAddress = 0x7169D38820dfd117C3FA1f22a697dBA58d90BA06; // Sepolia Tether USD
+    IERC20 private trustedToken;
+
+    uint256 public appFee; // [0, 100]
+    LoanPool[] public pools;
+    
+    mapping(address => LenderInfo) public lenders;
+    mapping(address => BorrowerInfo) public borrowers;
+    mapping(address => mapping(uint256 => uint256)) public lenderToPoolAmount;
+    Loan[] loans;
 
     constructor(uint256 _appFee) {
         owner = msg.sender;
@@ -87,7 +92,7 @@ contract P2PLoans {
         }
 
         uint256[] memory _loanIds;
-        pools.push(LoanPool(msg.sender, msg.value, _poolLenderFee, _lenders, _loanIds, true));
+        pools.push(LoanPool(msg.sender, msg.value, msg.value, _poolLenderFee, _lenders, _loanIds, true, 0));
         lenderToPoolAmount[msg.sender][poolId] += msg.value;
 
         emit PoolCreated(msg.sender);
@@ -103,6 +108,7 @@ contract P2PLoans {
         require(msg.value > 0, "Should contribute more than 0.");
         lenderToPoolAmount[msg.sender][poolId] += msg.value;
         pools[poolId].totalAmount += msg.value;
+        pools[poolId].currentAmount += msg.value;
 
         emit ContributedToPool();
     }  
@@ -115,42 +121,65 @@ contract P2PLoans {
 
         lenderToPoolAmount[msg.sender][poolId] -= amount;
         pools[poolId].totalAmount -= amount;
+        pools[poolId].currentAmount -= amount;
         emit WithdrawnFromPool();
     } 
 
     function getLenderReward(uint256 poolId) external {
         require(lenders[msg.sender].isActive, "Only lenders can withdraw from pool.");
         require(isInPool(msg.sender, poolId), "Lender should be in pool.");
-        trustedToken.transfer(msg.sender, lenders[msg.sender].totalReward);
+        uint256 lenderRewardInPool = pools[poolId].trustedTokenTotalAmount * lenderToPoolAmount[msg.sender][poolId] / pools[poolId].totalAmount;
+        SafeERC20.safeTransfer(trustedToken, msg.sender, lenderRewardInPool);
+        lenders[msg.sender].totalReward -= lenderRewardInPool;
     }
 
-    // Make approve before 
-    function makeBorrow(uint256 amount, uint256 trustedTokenAmount, uint256 duration, uint256 poolId) external { // duration in second
+    function makeBorrow(uint256 amount, uint256 trustedTokenAmount, uint256 duration, uint256 poolId) external {
         require(borrowers[msg.sender].isActive, "Should be active borrower.");
-        uint256 fee = trustedTokenAmount * appFee / 10000;
-        Loan memory loan = Loan(amount, amount + fee, fee, block.timestamp, duration, msg.sender, false);
+
+        uint256 poolFee = pools[poolId].poolLenderFee;
+        uint256 collateralFee = trustedTokenAmount * poolFee / 100;
+        uint256 collateral = trustedTokenAmount + collateralFee;
+
+        require(trustedToken.balanceOf(msg.sender) >= collateral, "Insufficient balance.");
+        require(trustedToken.allowance(msg.sender, address(this)) >= collateral, "Insufficient allowance");
+
+        Loan memory loan = Loan(amount, trustedTokenAmount, amount, block.timestamp, duration, poolId, false, msg.sender);
 
         uint256 loanId = loans.length;
 
-        trustedToken.transferFrom(msg.sender, address(this), trustedTokenAmount + fee);
+        SafeERC20.safeTransferFrom(trustedToken, msg.sender, address(this), collateral);
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Should send tokens from contract.");
+        pools[poolId].currentAmount -= amount;
+        pools[poolId].trustedTokenTotalAmount += collateral;
 
+        for (uint256 i = 0; i < pools[poolId].lenders.length; ++i) {
+            address lender = pools[poolId].lenders[i];
+            lenders[lender].totalReward += collateralFee * lenderToPoolAmount[lender][poolId] / pools[poolId].totalAmount;
+        }
+
+        borrowers[msg.sender].loanIds.push(loanId);
         pools[poolId].loanIds.push(loanId);
         loans.push(loan);
 
-        emit BorrowMade();
+        emit BorrowMade(loanId);
     }
 
-    function payLoan(uint256 poolId, uint256 loanId) external payable {
+    function payLoan(uint256 loanId, uint256 poolId) external payable {
+        require(block.timestamp < loans[loanId].loanStart + loans[loanId].duration, "Loan expired.");
         require(borrowers[msg.sender].isActive, "Should be borrower.");
         require(loans[loanId].borrower == msg.sender, "Should be valid borrower.");
         require(msg.value > 0, "Should pay > 0.");
 
-        // TODO: Change to convertion
+        uint256 borrowReturn = msg.value * loans[loanId].totalCollateral / loans[loanId].totalBorrow;
+
+        SafeERC20.safeTransfer(trustedToken, msg.sender, borrowReturn);
         loans[loanId].left -= msg.value;
-        trustedToken.transfer(msg.sender, msg.value);
+        pools[poolId].currentAmount += msg.value;
+        pools[poolId].trustedTokenTotalAmount -= borrowReturn;
 
         if (loans[loanId].left == 0) {
-            loans[loanId].payed = true;
+            loans[loanId].isPayed = true;
             emit LoanPayed(loanId);
         }
     }
@@ -179,7 +208,15 @@ contract P2PLoans {
         return borrowers[borrower].loanIds;
     }
 
-    function isInPool(address addr, uint256 poolId) private view returns (bool) {
+    function getLoan(uint256 loanId) external view returns (Loan memory) {
+        return loans[loanId];
+    }
+
+    function getPoolsAmount() external view returns (uint256) {
+        return pools.length;
+    }
+
+    function isInPool(address addr, uint256 poolId) public view returns (bool) {
         require(lenders[addr].isActive, "Should be lender.");
         for (uint256 i = 0; i < lenders[addr].poolIds.length; ++i) {
             if (lenders[addr].poolIds[i] == poolId) {

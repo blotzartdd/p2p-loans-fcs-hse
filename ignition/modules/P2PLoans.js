@@ -5,7 +5,7 @@ const { buildModule } = require("@nomicfoundation/hardhat-ignition/modules");
 
 module.exports = buildModule("P2PLoansModule", (m) => {
 
-    const appFee = 1e9;
+    const appFee = 50;
     const p2ploans = m.contract("P2PLoans", [appFee]);
 
     return { p2ploans };

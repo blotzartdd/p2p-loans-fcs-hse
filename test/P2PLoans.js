@@ -153,5 +153,21 @@ describe("P2PLoans", function() {
 
             expect(await p2ploans.borrowers(borrower.address)).to.be.equal(true);
         });
+
+        it("Should make borrow", async function() {
+            const { p2ploans, borrower, lender } = await loadFixture(deployFixture);
+
+            await expect(p2ploans.connect(borrower).becomeBorrower())
+                .to.emit(p2ploans, "NewBorrower");
+
+            await expect(p2ploans.connect(lender).becomeLender())
+                .to.emit(p2ploans, "NewLender");
+
+            const poolLenderFee = 5;
+            await expect(p2ploans.connect(lender).createPool(poolLenderFee, [lender.address], { value: 10 }))
+                .to.emit(p2ploans, "PoolCreated");
+
+            // await expect(p2ploans.connect(borrower).makeBorrow(5, 0, 10, 0)).to.emit(p2ploans, "BorrowMade");
+        });
     });
 });
