@@ -8,14 +8,6 @@ import { Coins, ArrowRightLeft } from 'lucide-react';
 
 import { getPoolsAmount, getPool, getBorrowerLoanIds, getLoan, getHumanTime, getBorrower, getTrustedTokenBalance } from './utils';
 
-interface LoanRequest {
-    id: number;
-    amount: bigint;
-    collateral: bigint;
-    duration: number;
-    apr: number;
-}
-
 function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalance, isDuration, isFee, setBorrowAmount, setCollateralAmount, setDuration, setMaxFee, usdtBalance }:
     {
         borrowAmount: bigint, collateralAmount: bigint, duration: bigint, maxFee: bigint, isBalance: boolean, isDuration: boolean, isFee: boolean,
@@ -26,7 +18,6 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
     }
     const [showGoodPoolsMenu, setShowGoodPoolsMenu] = useState(false);
     const [selectedPoolId, setSelectedPoolId] = useState(-1n);
-    const [selectedPoolFee, setSelectedPoolFee] = useState(0n);
     const pools = [];
     const poolsAmount = getPoolsAmount();
     console.log("Borrow amount:", borrowAmount);
@@ -42,7 +33,7 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
         return collateralAmount > 0 && duration > 0 && maxFee > 0;
     }
 
-    const { data: approveHash, writeContract: writeContractApprove } = useWriteContract();
+    const { data: approveHash, writeContract: writeContractApprove, isPending: isApprovePending } = useWriteContract();
     async function approve(collateralWithFee: bigint) {
         writeContractApprove({
             address: trustedTokenAddress,
@@ -68,9 +59,9 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
 
     function handleMakeBorrow(poolId: bigint, poolFee: bigint) {
         setSelectedPoolId(poolId);
-        setSelectedPoolFee(poolFee);
 
-        const collateralWithFee = collateralAmount + collateralAmount * selectedPoolFee / 100n;
+        const collateralWithFee = collateralAmount + collateralAmount * poolFee / 100n;
+        console.log("Collateral with fee:", collateralWithFee);
         approve(collateralWithFee);
     }
 
@@ -94,11 +85,7 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
                 onClick={() => setShowGoodPoolsMenu(true)}>
                 Submit Borrow Request
             </button>
-            {isBorrowPending === true && (
-                <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
-                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-lime-600"></div>
-                </div>
-            )}
+
 
             {
                 showGoodPoolsMenu && (
@@ -180,7 +167,7 @@ function BorrowRequest({ usdtBalance }: { usdtBalance: bigint | undefined }) {
     const [collateralAmount, setCollateralAmount] = useState('');
     const [duration, setDuration] = useState('');
     const [maxFee, setMaxFee] = useState('');
-    const ethToUsdt = 2010.42; // ETH price + 1% App Fee
+    const ethToUsdt = 1881.61; // ETH price + 1% App Fee
 
     const checkBalance = () => {
         return usdtBalance === undefined || usdtBalance >= Number(collateralAmount);

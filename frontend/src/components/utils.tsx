@@ -115,6 +115,26 @@ export function getTrustedTokenBalance(address: `0x${string}` | undefined) {
     return balance.valueOf();
 }
 
+export function isInPool(address: `0x${string}` | undefined, poolId: bigint) {
+    if (address === undefined) {
+        address = `0x${''}`;
+    }
+
+    const { data: isInPool, isSuccess } = useReadContract({
+        address: p2ploansAddress,
+        abi: p2ploansABI,
+        functionName: 'isInPool',
+        args: [address, poolId],
+    });
+
+    if (isSuccess) {
+        return isInPool;
+    }
+
+    return false;
+}
+
+
 export function getHumanTime(timestamp: bigint) {
     let months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     let date = new Date(Number(timestamp) * 1000);

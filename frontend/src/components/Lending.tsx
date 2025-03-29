@@ -3,16 +3,7 @@ import { parseEther, formatEther, formatUnits } from 'ethers';
 import { useAccount, useBalance, useReadContract, useWriteContract } from 'wagmi';
 import { Coins, ArrowRightLeft, Landmark } from 'lucide-react';
 import { p2ploansABI, p2ploansAddress } from '../p2ploansConfig';
-import { getPool, getPoolsAmount } from './utils';
-
-interface Pool {
-    id: bigint;
-    totalAmount: bigint;
-    currentAmount: bigint;
-    apr: number;
-    isActive: boolean;
-    isLoaded: boolean;
-}
+import { getPool, getPoolsAmount, isInPool } from './utils';
 
 function Contribute({ poolId }: { poolId: bigint }) {
     const [showContributeMenu, setShowContributeMenu] = useState(false);
@@ -255,10 +246,9 @@ function CreatePool() {
         })
     };
 
-    async function handleWithdraw() {
+    async function handleCreatePool() {
         setShowCreatePoolMenu(false);
         createPool();
-        console.log(`Withdraw amount: ${amount}`);
         setAmount('');
     };
 
@@ -333,7 +323,7 @@ function CreatePool() {
                                     Cancel
                                 </button>
                                 <button
-                                    onClick={handleWithdraw}
+                                    onClick={handleCreatePool}
                                     className="px-4 py-2 bg-lime-600 text-white rounded hover:bg-lime-700 transition-colors"
                                 >
                                     Confirm
@@ -373,25 +363,6 @@ function GetLenderPoolAmount({ poolId, address }: { poolId: bigint, address: `0x
             Your part: {formatEther(amount.toString())} ETH
         </p>
     );
-}
-
-function isInPool(address: `0x${string}` | undefined, poolId: bigint) {
-    if (address === undefined) {
-        address = `0x${''}`;
-    }
-
-    const { data: isInPool, isSuccess } = useReadContract({
-        address: p2ploansAddress,
-        abi: p2ploansABI,
-        functionName: 'isInPool',
-        args: [address, poolId],
-    });
-
-    if (isSuccess) {
-        return isInPool;
-    }
-
-    return false;
 }
 
 function Pools({ address, poolsAmount }: { address: `0x${string}` | undefined, poolsAmount: bigint }) {
