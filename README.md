@@ -13,7 +13,7 @@ A decentralized lending app that is part of my web3 startup.
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | Alchemy                | Alchemy API key (create one [here](https://docs.alchemy.com/docs/alchemy-quickstart-guide#1key-create-an-alchemy-key)) |                                          
 | Sepolia Private Key (optional)   | Add your sepolia private key if you want to deploy lending smart-contract with hardhat                            |                                         
-| Etherscan Api Key (optional) | Add if you want to verify your smart-contractwith hardhat |
+| Etherscan Api Key (optional) | Add if you want to verify your smart-contract with hardhat |
 
 2. Install project dependencies
 
