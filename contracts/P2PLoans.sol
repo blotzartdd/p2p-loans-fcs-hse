@@ -116,6 +116,7 @@ contract P2PLoans is IP2PLoans {
      function withdrawFromPool(uint256 poolId, uint256 amount) external {
         require(lenders[msg.sender].isActive, "Only lenders can withdraw from pool.");
         require(isInPool(msg.sender, poolId), "Lender should be in pool.");
+        require(pools[poolId].currentAmount > amount, "Not enough ETH in pool.");
         (bool success, ) = msg.sender.call{value: amount}("");
         require(success, "Successfully withdrawn from pool");
 
