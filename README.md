@@ -18,7 +18,7 @@ A decentralized lending app that is part of my web3 startup.
 2. Install project dependencies
 
 ```
-npm install
+// npm install (optional, if you want to deploy)
 cd frontend
 npm install
 ```
