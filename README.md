@@ -34,3 +34,7 @@ npm run dev
 ```
 open http://localhost:5173
 ```
+
+## Requirements
+
+- An up-to-date stable version of [Node](https://nodejs.org/en) and [npm](https://www.npmjs.com/).
