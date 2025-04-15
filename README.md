@@ -18,7 +18,9 @@ A decentralized lending app that is part of my web3 startup.
 2. Install project dependencies
 
 ```
-# npm install (optional, if you want to deploy)
+git clone https://github.com/blotzartdd/p2p-loans-fcs-hse.git
+cd p2p-loans-fcs-hse
+npm install
 cd frontend
 npm install
 ```
@@ -38,3 +40,7 @@ open http://localhost:5173
 ## Requirements
 
 - An up-to-date stable version of [Node](https://nodejs.org/en) and [npm](https://www.npmjs.com/).
+
+## Deployment
+
+- App deployed with Github Pages on https://blotzartdd.github.io/p2p-loans-fcs-hse/
