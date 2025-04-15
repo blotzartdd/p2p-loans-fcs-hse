@@ -10,7 +10,7 @@ export const config = createConfig({
         metaMask(),
     ],
     transports: {
-        [sepolia.id]: http(),
+        [sepolia.id]: http(`https://eth-sepolia.g.alchemy.com/v2/-Mo9akOPM6KV6V8H0XmCxjlxvI-KbxyB`),
     },
 })
 

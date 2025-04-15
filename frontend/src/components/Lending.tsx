@@ -474,7 +474,7 @@ function BecomeLender({ address }: { address: `0x${string}` | undefined }) {
                     <div className="bg-green-50 rounded-lg p-6">
                         <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
                             <ArrowRightLeft className="w-5 h-5" />
-                            Join community
+                                Register as lender
                         </h3 >
                         <div className="flex gap-4">
                             <button

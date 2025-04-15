@@ -1,4 +1,4 @@
-export const p2ploansAddress = "0x03460A025Dfc8156d05e0a445E354EDe6e5aa181" as const;
+export const p2ploansAddress = "0xe447f901Fa2760fAF3Eac04899156D24542e4345" as const;
 
 export const p2ploansABI = [
     {

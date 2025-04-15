@@ -86,11 +86,16 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
                 Submit Borrow Request
             </button>
 
+            {isBorrowPending === true && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
+                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-lime-600"></div>
+                </div>
+            )}
 
             {
                 showGoodPoolsMenu && (
                     <div className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100/50">
-                        <div className="bg-white p-6 rounded-lg shadow-lg max-w-4xl w-full space-y-3">
+                        {isApprovePending === false ? (<div className="bg-white p-6 rounded-lg shadow-lg max-w-4xl w-full space-y-3">
                             <p className="text-lg font-semibold mb-4">Select pool</p>
                             {pools.length === 0 ? (
                                 <div className="items-center">
@@ -155,6 +160,8 @@ function MakeBorrow({ borrowAmount, collateralAmount, duration, maxFee, isBalanc
                                 </button>
                             </div>
                         </div >
+                        ) : (<div className="animate-spin rounded-full h-32 w-32 border-b-2 border-lime-600"></div>
+                        )}
                     </div >
                 )
             }
@@ -167,7 +174,7 @@ function BorrowRequest({ usdtBalance }: { usdtBalance: bigint | undefined }) {
     const [collateralAmount, setCollateralAmount] = useState('');
     const [duration, setDuration] = useState('');
     const [maxFee, setMaxFee] = useState('');
-    const ethToUsdt = 1881.61; // ETH price + 1% App Fee
+    const ethToUsdt = 1565.31; // ETH price + 1% App Fee
 
     const checkBalance = () => {
         return usdtBalance === undefined || usdtBalance >= Number(collateralAmount);
@@ -299,7 +306,7 @@ function BecomeBorrower({ address }: { address: `0x${string}` | undefined }) {
                         <>
                             <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
                                 <ArrowRightLeft className="w-5 h-5" />
-                                Join community
+                                Register as borrower
                             </h3 >
                             <div className="flex gap-4">
                                 <button
