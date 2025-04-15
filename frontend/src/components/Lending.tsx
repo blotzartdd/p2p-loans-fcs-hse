@@ -233,15 +233,21 @@ function CreatePool() {
     const [showCreatePoolMenu, setShowCreatePoolMenu] = useState(false);
     const [amount, setAmount] = useState('');
     const [fee, setFee] = useState('');
-    const [lenders, setLenders] = useState([]);
+    const [lenders, setLenders] = useState<string[]>([]);
     const { writeContract, isPending } = useWriteContract();
 
     async function createPool() {
+        const poolLenders: `0x${string}`[] = [];
+        for (const lender of lenders) {
+            poolLenders.push(`0x${lender.substring(2)}`);
+        }
+
+
         writeContract({
             address: p2ploansAddress,
             abi: p2ploansABI,
             functionName: 'createPool',
-            args: [BigInt(fee), lenders],
+            args: [BigInt(fee), poolLenders],
             value: BigInt(parseEther(amount)),
         })
     };
@@ -474,7 +480,7 @@ function BecomeLender({ address }: { address: `0x${string}` | undefined }) {
                     <div className="bg-green-50 rounded-lg p-6">
                         <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
                             <ArrowRightLeft className="w-5 h-5" />
-                                Register as lender
+                            Register as lender
                         </h3 >
                         <div className="flex gap-4">
                             <button

@@ -200,7 +200,7 @@ function BorrowRequest({ usdtBalance }: { usdtBalance: bigint | undefined }) {
                 onChange={(e) => {
                     setBorrowAmount(e.target.value);
                     if (e.target.value) {
-                        setCollateralAmount(e.target.value * ethToUsdt);
+                        setCollateralAmount(String(Number(e.target.value) * ethToUsdt));
                     } else {
                         setCollateralAmount(e.target.value);
                     }
@@ -216,7 +216,7 @@ function BorrowRequest({ usdtBalance }: { usdtBalance: bigint | undefined }) {
                 onChange={(e) => {
                     setCollateralAmount(e.target.value);
                     if (e.target.value) {
-                        setBorrowAmount(e.target.value / ethToUsdt);
+                        setBorrowAmount(String(Number(e.target.value) / ethToUsdt));
                     } else {
                         setBorrowAmount(e.target.value);
                     }
@@ -360,7 +360,7 @@ function BorrowerInfo({ usdtBalance, ethBalance, address }: {
     );
 }
 
-function Loans({ loanIds }: { loanIds: bigint[] }) {
+function Loans({ loanIds }: { loanIds: readonly bigint[] }) {
     const payedLoans = [];
     const notPayedLoans = [];
     for (let i = 0; i < loanIds.length; ++i) {

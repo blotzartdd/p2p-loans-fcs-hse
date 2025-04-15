@@ -8,4 +8,5 @@ export default defineConfig({
         react(),
         tailwindcss(),
     ],
+    base: "/p2p-loans-fcs-hse/",
 })
