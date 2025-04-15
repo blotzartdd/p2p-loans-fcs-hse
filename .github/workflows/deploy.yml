@@ -31,18 +31,16 @@ jobs:
           cache: 'npm'
       - name: Install hardhat dependencies
         run: npm i
-      - name: Go to frontend dir
-        run: cd frontend
       - name: Install frontend dependenices
-        run: npm ci
+        run: cd frontend && npm ci
       - name: Build
-        run: npm run build
+        run: cd frontend && npm run build
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist'
+          path: './frontend/dist'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
