@@ -19,14 +19,11 @@ function App() {
                         <div className="sm:px-8 lg:px-8 flex justify-between h-16">
                             <div className="flex items-center">
                                 <span className="text-xl font-bold text-gray-800">
-                                    BitBank
+                                    P2P Loans
                                 </span>
                             </div>
 
                             <div className="flex items-center space-x-10">
-                                <button className="px-4 py-2 rounded-lg hover:text-lime-400 transition-colors duration-200"> Home </button>
-                                <button className="px-4 py-2 rounded-lg hover:text-lime-400 transition-colors duration-200"> Swap </button>
-                                <button className="px-4 py-2 rounded-lg hover:text-lime-400 transition-colors duration-200"> Dashboard </button>
                                 <button
                                     className={`px-4 py-2 rounded-lg text-gray-800 transition-colors ${activeTab === 'lend'
                                         ? 'bg-lime-400'
