@@ -361,14 +361,18 @@ function BorrowerInfo({ usdtBalance, ethBalance, address }: {
 }
 
 function Loans({ loanIds }: { loanIds: readonly bigint[] }) {
-    const payedLoans = [];
-    const notPayedLoans = [];
+    const finishedLoans = [];
+    const notFinishedLoans = [];
     for (let i = 0; i < loanIds.length; ++i) {
         const loan = getLoan(loanIds[i]);
-        if (loan.isPayed) {
-            payedLoans.push(loan);
+        if (loan.loanStart + loan.duration >= Date.now()) {
+            loan.isExpired = true;
+        }
+
+        if (loan.isPayed || loan.isExpired) {
+            finishedLoans.push(loan);
         } else {
-            notPayedLoans.push(loan);
+            notFinishedLoans.push(loan);
         }
     }
 
@@ -377,7 +381,7 @@ function Loans({ loanIds }: { loanIds: readonly bigint[] }) {
             <div className="bg-white rounded-xl shadow-lg p-6 my-4">
                 <h3 className="text-xl font-semibold mb-6">Active Loans</h3>
                 <div className="grid gap-4">
-                    {notPayedLoans.map((loan) => (
+                    {notFinishedLoans.map((loan) => (
                         <>
                             {
                                 !loan.isPayed && (
@@ -425,12 +429,12 @@ function Loans({ loanIds }: { loanIds: readonly bigint[] }) {
             <div className="bg-white rounded-xl shadow-lg p-6 my-4">
                 <h3 className="text-xl font-semibold mb-6">Finished Loans</h3>
                 <div className="grid gap-4">
-                    {payedLoans.map((loan) => (
+                    {finishedLoans.map((loan) => (
                         <div
                             key={loan.id}
                             className="border rounded-lg p-4 hover:border-lime-500 transition-colors"
                         >
-                            {loan.isLoaded && loan.isPayed ? (<div className="flex justify-between items-center">
+                            {loan.isLoaded ? (<div className="flex justify-between items-center">
                                 <div>
                                     <p className="text-lg font-semibold">
                                         Loan amount: {formatEther(loan.totalBorrow)} ETH
@@ -450,7 +454,7 @@ function Loans({ loanIds }: { loanIds: readonly bigint[] }) {
                                 </div>
                                 <div className="text-right">
                                     <p className={`text-lg font-semibold ${loan.isPayed ? "text-lime-600" : "text-red-600"}`}>
-                                        {loan.isPayed ? "Closed in time" : "Not closed"}
+                                        {loan.isPayed && !loan.isExpired ? "Closed in time" : "Loan expired"}
                                     </p>
                                 </div>
                             </div>
