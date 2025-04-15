@@ -1,4 +1,4 @@
-# p2p-loans-fcs-hse
+# P2P Loans FCS HSE
 Course project (Zamyatin Matvey HSE FCS AMI)
 
 ## Overview
@@ -44,3 +44,10 @@ open http://localhost:5173
 ## Deployment
 
 - App deployed with Github Pages on https://blotzartdd.github.io/p2p-loans-fcs-hse/
+
+## Addresses
+All addresses listed in the Sepolia network:
+```
+P2P Loans Contract: 0xe447f901Fa2760fAF3Eac04899156D24542e4345
+USDT Token Contract: 0x7169D38820dfd117C3FA1f22a697dBA58d90BA06
+```
