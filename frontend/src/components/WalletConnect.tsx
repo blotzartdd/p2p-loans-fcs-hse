@@ -1,11 +1,27 @@
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import { LogOut } from 'lucide-react';
+import useIsWalletInstalled from './checkWalletInstalled';
 
 export function WalletConnect() {
     const { address, isConnected } = useAccount();
     const { connect } = useConnect();
     const { disconnect } = useDisconnect();
+
+    const isWalletInstalled = useIsWalletInstalled({ wallet: 'metamask' }) || useIsWalletInstalled({ flag: 'isTrust' });
+
+
+    if (!isWalletInstalled) {
+        return (
+            <div className="flex items-center gap-4">
+                <div
+                    className="flex text-sm items-center gap-2 px-4 py-2 text-red-600 hover:text-red-700 duration-200 transition-colors"
+                >
+                    You should install MetaMask or Trust Wallet to use this app.
+                </div>
+            </div>
+        );
+    }
 
     if (isConnected && address) {
         return (
@@ -23,6 +39,7 @@ export function WalletConnect() {
             </div>
         );
     }
+
 
     return (
         <button
