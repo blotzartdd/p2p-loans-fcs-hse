@@ -8,11 +8,11 @@ const { ethers } = require("hardhat");
 
 describe("P2PLoans", function() {
     async function deployFixture() {
-        // Contracts are deployed using the first signer/account by default
         const [owner, lender, borrower] = await ethers.getSigners();
 
         const P2PLoans = await ethers.getContractFactory("P2PLoans");
-        const p2ploans = await P2PLoans.deploy(50);
+        const appFee = 5;
+        const p2ploans = await P2PLoans.deploy(appFee);
 
         return { p2ploans, owner, lender, borrower };
     }
@@ -22,6 +22,19 @@ describe("P2PLoans", function() {
             const { p2ploans, owner } = await loadFixture(deployFixture);
 
             expect(await p2ploans.owner()).to.equal(owner.address);
+        });
+    });
+
+    describe("Owner actions", function() {
+        it("Should change app fee", async function() {
+            const { p2ploans, owner } = await loadFixture(deployFixture);
+
+            expect(await p2ploans.appFee()).to.equal(5);
+
+            const newAppFee = 1;
+            await p2ploans.connect(owner).changeAppFee(newAppFee);
+
+            expect(await p2ploans.appFee()).to.equal(1);
         });
     });
 
@@ -154,6 +167,17 @@ describe("P2PLoans", function() {
             expect(await p2ploans.borrowers(borrower.address)).to.be.equal(true);
         });
 
+        it("Should revert registered borrower", async function() {
+            const { p2ploans, borrower } = await loadFixture(deployFixture);
+
+            await expect(p2ploans.connect(borrower).becomeBorrower())
+                .to.emit(p2ploans, "NewBorrower");
+
+            expect(await p2ploans.borrowers(borrower.address)).to.be.equal(true);
+
+            await expect(p2ploans.connect(borrower).becomeBorrower()).to.be.revertedWith("Should not be borrower.");
+        });
+
         it("Should make borrow", async function() {
             const { p2ploans, borrower, lender } = await loadFixture(deployFixture);
 
@@ -166,8 +190,6 @@ describe("P2PLoans", function() {
             const poolLenderFee = 5;
             await expect(p2ploans.connect(lender).createPool(poolLenderFee, [lender.address], { value: 10 }))
                 .to.emit(p2ploans, "PoolCreated");
-
-            // await expect(p2ploans.connect(borrower).makeBorrow(5, 0, 10, 0)).to.emit(p2ploans, "BorrowMade");
         });
     });
 });
